@@ -49,7 +49,9 @@
 #define CH(x,y,z)  (((x)&(y)) ^ ((~(x))&(z)))
 #define MAJ(x,y,z) (((x)&(y)) ^ ((x)&(z)) ^ ((y)&(z)))
 
+#ifndef LITTLE_ENDIAN
 #define LITTLE_ENDIAN
+#endif
 
 #if HASH == HASH_SHA224 || HASH == HASH_SHA256
     #define SIGMA_0(x) (rotr32((x), 2) ^ rotr32((x),13) ^ rotl32((x),10))

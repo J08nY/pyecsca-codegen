@@ -1,12 +1,14 @@
 TARGET = pyecsca-codegen
 
-SRC += main.c ecdh.c ecdsa.c hash/hash.c
+SRC += main.c bn.c ecdh.c ecdsa.c hash/hash.c prng/prng.c
 
-CDEFS += -DHASH=HASH_SHA1
+CDEFS += -DHASH=HASH_SHA224
 
-MKDIR_LIST += hash
+MKDIR_LIST += hash prng
 
-EXTRAINCDIRS += hash
+EXTRAINCDIRS += hash prng ../../ext/libtommath/
+
+LDFLAGS += ../../ext/libtommath/libtommath.a
 
 include simpleserial/Makefile.simpleserial
 

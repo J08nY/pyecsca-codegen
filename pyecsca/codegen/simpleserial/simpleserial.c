@@ -3,6 +3,7 @@
 #include "simpleserial.h"
 #include <stdint.h>
 #include "hal.h"
+#include <stdio.h>
 
 typedef struct ss_cmd
 {
@@ -28,10 +29,13 @@ static char hex_lookup[16] =
 
 int hex_decode(int len, char* ascii_buf, uint8_t* data_buf)
 {
-	for(int i = 0; i < len; i++)
+	if (len % 2 != 0)
+		return 1;
+
+	for(int i = 0; i < len; i+=2)
 	{
-		char n_hi = ascii_buf[2*i];
-		char n_lo = ascii_buf[2*i+1];
+		char n_hi = ascii_buf[i];
+		char n_lo = ascii_buf[i+1];
 
 		if(n_lo >= '0' && n_lo <= '9')
 			data_buf[i] = n_lo - '0';
@@ -125,7 +129,7 @@ void simpleserial_get(void)
 
 	// Callback
 	uint8_t ret[1];
-	ret[0] = commands[cmd].fp(data_buf, i);
+	ret[0] = commands[cmd].fp(data_buf, i/2);
 	
 	// Acknowledge (if version is 1.1)
 #if SS_VER == SS_VER_1_1

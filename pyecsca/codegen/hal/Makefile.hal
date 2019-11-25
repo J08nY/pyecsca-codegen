@@ -20,6 +20,8 @@ define KNOWN_PLATFORMS
 +-------------------------------------------------------+
 | CW308_STM32F3 | CW308T-STM32F3 (ST Micro STM32F3)     |
 +-------------------------------------------------------+
+| HOST          | Host machine                          |
++-------------------------------------------------------+
 
 endef
 
@@ -44,6 +46,9 @@ else ifeq ($(PLATFORM),CW308_STM32F0)
 else ifeq ($(PLATFORM),CW308_STM32F3)
   HAL = stm32f3
   PLTNAME = CW308T: STM32F3 Target
+else ifeq ($(PLATFORM),HOST)
+  HAL = host
+  PLTNAME = HOST: Host machine target
 else
   $(error Invalid or empty PLATFORM: $(PLATFORM). Known platforms: $(KNOWN_PLATFORMS))
 endif

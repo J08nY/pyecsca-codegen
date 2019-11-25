@@ -24,6 +24,7 @@ void platform_init(void);
 #define HAL_xmega   1
 #define HAL_stm32f0 2
 #define HAL_stm32f3 3
+#define HAL_host    4
 
 #if HAL == HAL_xmega
     #include <avr/io.h>
@@ -34,6 +35,8 @@ void platform_init(void);
     #include "stm32f0/stm32f0_hal.h"
 #elif HAL == HAL_stm32f3
     #include "stm32f3/stm32f3_hal.h"
+#elif HAL == HAL_host
+    #include "host/host_hal.h"
 #else
     #error "Unsupported HAL Type"
 #endif

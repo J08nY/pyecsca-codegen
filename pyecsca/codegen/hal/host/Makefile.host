@@ -1,0 +1,10 @@
+VPATH += :$(HALPATH)/host
+SRC += uart.c host_hal.c
+EXTRAINCDIRS += $(HALPATH)/host
+
+CC = gcc
+OBJCOPY = objcopy
+OBJDUMP = objdump
+SIZE = size
+AR = ar rcs
+NM = nm

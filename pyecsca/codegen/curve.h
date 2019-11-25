@@ -4,8 +4,8 @@
 //curve_t definition is variable
 /*
 typedef struct {
-	bn_t a;
-	bn_t b;
+	bn_t n;
+	point_t *neutral;
 } curve_t;
 */
 

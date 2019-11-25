@@ -24,7 +24,9 @@
 #include <stdlib.h>
 #include "sha1.h"
 
+#ifndef LITTLE_ENDIAN
 #define LITTLE_ENDIAN
+#endif
 
 /********************************************************************************************************/
 
