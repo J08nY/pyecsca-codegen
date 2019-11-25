@@ -1,16 +1,10 @@
 #ifndef COORDS_H_
 #define COORDS_H_
 
-//point_t definition is variable
-/*
-typedef struct {
-	bn_t X;
-	bn_t Y;
-	bn_t Z;
-} point_t;
-*/
+#include "bn.h"
+#include "defs.h"
 
-point_t *point_new();
+point_t *point_new(void);
 
 point_t *point_copy(const point_t *from);
 

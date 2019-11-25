@@ -7,3 +7,5 @@
 *.sym
 .dep/
 objdir/
+
+__pycache__

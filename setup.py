@@ -29,7 +29,8 @@ setup(
             "atpublic",
             "matplotlib",
             "fastdtw",
-            "asn1crypto"
+            "asn1crypto",
+            "jinja2"
         ],
         extras_require={
             "typecheck": ["mypy"],
