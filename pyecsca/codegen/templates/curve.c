@@ -5,6 +5,7 @@ curve_t* curve_new(const named_bn_t **params, int num_params) {
 	bn_init(&result->{{ param }});
 	{%- endfor %}
 	bn_init(&result->n);
+	result->neutral = NULL;
 
 	for (int i = 0; i < num_params; ++i) {
 		switch (params[i]->name) {

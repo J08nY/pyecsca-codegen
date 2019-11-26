@@ -30,4 +30,6 @@ int point_to_affine(point_t *point, const char coord, curve_t *curve, bn_t *out)
 	
 }
 
-int point_from_affine(bn_t *x, bn_t *y, curve_t *curve, point_t *out);
+int point_from_affine(bn_t *x, bn_t *y, curve_t *curve, point_t *out) {
+
+}
