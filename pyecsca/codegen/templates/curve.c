@@ -1,5 +1,6 @@
 curve_t* curve_new(const named_bn_t **params, int num_params) {
 	curve_t *result = malloc(sizeof(curve_t));
+	bn_init(&result->p);
 	{%- for param in params %}
 	bn_init(&result->{{ param }});
 	{%- endfor %}
@@ -20,6 +21,7 @@ curve_t* curve_new(const named_bn_t **params, int num_params) {
 }
 
 void curve_free(curve_t *curve) {
+	bn_clear(&curve->p);
 	{%- for param in params %}
 	bn_clear(&curve->{{ param }});
 	{%- endfor %}

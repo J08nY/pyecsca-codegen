@@ -1,4 +1,5 @@
 typedef struct {
+	bn_t p;
     {%- for param in params %}
     bn_t {{ param }};
     {%- endfor %}
