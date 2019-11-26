@@ -3,7 +3,6 @@
 #include "simpleserial.h"
 #include <stdint.h>
 #include "hal.h"
-#include <stdio.h>
 
 typedef struct ss_cmd
 {
@@ -12,11 +11,8 @@ typedef struct ss_cmd
 	uint8_t (*fp)(uint8_t*, uint16_t);
 } ss_cmd;
 
-#define MAX_SS_CMDS 26
 static ss_cmd commands[MAX_SS_CMDS];
 static int num_commands = 0;
-
-#define MAX_SS_LEN 256
 
 #define SS_VER_1_0 0
 #define SS_VER_1_1 1
@@ -89,14 +85,17 @@ int simpleserial_addcmd(char c, unsigned int len, uint8_t (*fp)(uint8_t*, uint16
 	return 0;
 }
 
-void simpleserial_get(void)
+int simpleserial_get(void)
 {
 	char ascii_buf[2*MAX_SS_LEN];
 	uint8_t data_buf[MAX_SS_LEN];
-	char c;
+	int ci;
 
 	// Find which command we're receiving
-	c = getch();
+	ci = getch();
+	if (ci == -1)
+		return 0;
+	char c = (char) ci;
 
 	int cmd;
 	for(cmd = 0; cmd < num_commands; cmd++)
@@ -107,7 +106,7 @@ void simpleserial_get(void)
 
 	// If we didn't find a match, give up right away
 	if(cmd == num_commands)
-		return;
+		return 1;
 
 	// Receive characters until we fill the ASCII buffer
 	int i = 0;
@@ -125,7 +124,7 @@ void simpleserial_get(void)
 	// ASCII buffer is full: convert to bytes 
 	// Check for illegal characters here
 	if(hex_decode(i, ascii_buf, data_buf))
-		return;
+		return 1;
 
 	// Callback
 	uint8_t ret[1];
@@ -135,6 +134,7 @@ void simpleserial_get(void)
 #if SS_VER == SS_VER_1_1
 	simpleserial_put('z', 1, ret);
 #endif
+	return 1;
 }
 
 void simpleserial_put(char c, int size, uint8_t* output)

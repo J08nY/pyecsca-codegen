@@ -6,6 +6,9 @@
 
 #include <stdint.h>
 
+#define MAX_SS_CMDS 26
+#define MAX_SS_LEN 512
+
 // Set up the SimpleSerial module
 // This prepares any internal commands
 void simpleserial_init(void);
@@ -32,7 +35,7 @@ int simpleserial_addcmd(char c, unsigned int len, uint8_t (*fp)(uint8_t*, uint16
 // - First character didn't match any known commands
 // - One of the characters wasn't in [0-9|A-F|a-f]
 // - Data was too short or too long
-void simpleserial_get(void);
+int simpleserial_get(void);
 
 // Write some data to the serial port
 // Prepends the character c to the start of the line

@@ -15,8 +15,14 @@ bn_err bn_init(bn_t *bn);
 void bn_copy(bn_t *from, bn_t *to);
 void bn_clear(bn_t *bn);
 
+int bn_from_bin(const uint8_t *data, size_t size, bn_t *out);
 int bn_from_hex(const char *data, bn_t *out);
 int bn_from_int(uint64_t value, bn_t *out);
+
+void bn_to_binpad(const bn_t *one, uint8_t *data, size_t size);
+void bn_to_bin(const bn_t *one, uint8_t *data);
+size_t bn_to_bin_size(const bn_t *one);
+
 void bn_mod_add(bn_t *one, bn_t *other, bn_t *mod, bn_t *out);
 void bn_mod_sub(bn_t *one, bn_t *other, bn_t *mod, bn_t *out);
 void bn_mod_mul(bn_t *one, bn_t *other, bn_t *mod, bn_t *out);

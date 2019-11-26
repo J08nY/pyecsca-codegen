@@ -6,7 +6,7 @@
 
 void init_uart0(void);
 
-char input_ch_0(void);
+int input_ch_0(void);
 
 void output_ch_0(char data);
 

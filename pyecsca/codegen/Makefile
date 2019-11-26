@@ -1,6 +1,6 @@
 TARGET = pyecsca-codegen
 
-SRC += main.c bn.c ecdh.c ecdsa.c hash/hash.c mult/mult.c prng/prng.c
+SRC += main.c bn.c ecdh.c ecdsa.c asn1.c hash/hash.c mult/mult.c prng/prng.c
 
 CDEFS += -DHASH=HASH_SHA224
 

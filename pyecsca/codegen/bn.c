@@ -12,6 +12,10 @@ void bn_clear(bn_t *bn) {
 	mp_clear(bn);
 }
 
+int bn_from_bin(const uint8_t *data, size_t size, bn_t *out) {
+	return mp_from_ubin(out, data, size);
+}
+
 int bn_from_hex(const char *data, bn_t *out) {
 	return mp_read_radix(out, data, 16);
 }
@@ -19,6 +23,20 @@ int bn_from_hex(const char *data, bn_t *out) {
 int bn_from_int(uint64_t value, bn_t *out) {
 	mp_set_u64(out, value);
 	return MP_OKAY;
+}
+
+void bn_to_binpad(const bn_t *one, uint8_t *data, size_t size) {
+	size_t ubin_size = mp_ubin_size(one);
+	size_t offset = size - ubin_size;
+	mp_to_ubin(one, data + offset, ubin_size, NULL);
+}
+
+void bn_to_bin(const bn_t *one, uint8_t *data) {
+	mp_to_ubin(one, data, mp_ubin_size(one), NULL);
+}
+
+size_t bn_to_bin_size(const bn_t *one) {
+	return mp_ubin_size(one);
 }
 
 void bn_mod_add(bn_t *one, bn_t *other, bn_t *mod, bn_t *out) {
