@@ -6,7 +6,7 @@ from pyecsca.ec.coordinates import CoordinateModel
 from pyecsca.ec.formula import (Formula, AdditionFormula, DoublingFormula, TriplingFormula,
                                 NegationFormula, ScalingFormula, DifferentialAdditionFormula,
                                 LadderFormula)
-from pyecsca.ec.model import CurveModel, MontgomeryModel
+from pyecsca.ec.model import CurveModel, ShortWeierstrassModel
 from pyecsca.ec.op import CodeOp
 
 env = Environment(
@@ -45,7 +45,7 @@ def render_coords_definition(coords: CoordinateModel):
 def transform_ops(ops: List[CodeOp], parameters: List[str], outputs: Set[str],
                   renames: Mapping[str, str] = None):
     def rename(name: str):
-        if renames is not None:
+        if renames is not None and name not in outputs:
             return renames.get(name, name)
         return name
 
@@ -55,7 +55,7 @@ def transform_ops(ops: List[CodeOp], parameters: List[str], outputs: Set[str],
     operations = []
     frees = []
     for op in ops:
-        if op.result not in allocations and op.result not in outputs:
+        if op.result not in allocations:
             allocations.append(op.result)
             frees.append(op.result)
         for param in op.parameters:
@@ -69,11 +69,16 @@ def transform_ops(ops: List[CodeOp], parameters: List[str], outputs: Set[str],
                 const_mapping[const] = name
                 frees.append(name)
         operations.append((op.operator, op.result, rename(op.left), rename(op.right)))
+    returns = {}
+    if renames:
+        for r_from, r_to in renames.items():
+            if r_from in outputs:
+                returns[r_from] = r_to
 
     return dict(allocations=allocations,
                 initializations=initializations,
                 const_mapping=const_mapping, operations=operations,
-                frees=frees)
+                frees=frees, returns=returns)
 
 
 def render_ops(ops: List[CodeOp], parameters: List[str], outputs: Set[str],
@@ -89,9 +94,18 @@ def render_coords_impl(coords: CoordinateModel):
             ops.append(CodeOp(s))
         except:
             pass
-    transform_ops(ops, coords.curve_model.parameter_names, coords.curve_model.coordinate_names)
-    # TODO: do point_from_affine, and point_to_affine
-    return env.get_template("coords.c").render(variables=coords.variables)
+    renames = {"x": "out_x", "y": "out_y"}
+    for variable in coords.variables:
+        renames[variable] = "point->{}".format(variable)
+    namespace = transform_ops(ops, coords.curve_model.parameter_names,
+                              coords.curve_model.coordinate_names, renames)
+    returns = namespace["returns"]
+    namespace["returns"] = {}
+    frees = namespace["frees"]
+    namespace["frees"] = {}
+
+    return env.get_template("coords.c").render(variables=coords.variables, **namespace,
+                                               to_affine_rets=returns, to_affine_frees=frees)
 
 
 def render_formula_impl(formula: Formula):
@@ -123,13 +137,17 @@ def render_formula_impl(formula: Formula):
         var = output[0]
         num = int(output[1:]) - formula.output_index
         renames[output] = "{}->{}".format(outputs[num], var)
-    namespace = transform_ops(formula.code, formula.coordinate_model.curve_model.parameter_names, formula.outputs, renames)
+    namespace = transform_ops(formula.code, formula.coordinate_model.curve_model.parameter_names,
+                              formula.outputs, renames)
     return template.render(namespace)
 
 
+def render_main(model: CurveModel, coords: CoordinateModel):
+    return env.get_template("main.c").render(curve_variables=coords.variables,
+                                             curve_parameters=model.parameter_names)
+
+
 if __name__ == "__main__":
-    mont = MontgomeryModel()
-    mcoords = mont.coordinates["xz"]
-    dbl = mcoords.formulas["dbl-1987-m"]
-    t = transform_ops(dbl.code, mont.parameter_names, dbl.outputs)
-    print(render_formula_impl(dbl))
+    model = ShortWeierstrassModel()
+    coords = model.coordinates["projective"]
+    print(render_coords_impl(coords))

@@ -18,3 +18,7 @@ void hash_init(void *ctx) {
 void hash_final(void *ctx, int size, const uint8_t *msg, uint8_t *digest) {
     memcpy(digest, msg, size);
 }
+
+void hash_free_ctx(void *ctx) {
+
+}

@@ -187,3 +187,7 @@ void hash_final(void *ctx, int size, const uint8_t *msg, uint8_t *digest) {
 	sha1_lastBlock(ctx, msg, length);
 	sha1_ctx2hash(digest, ctx);
 }
+
+void hash_free_ctx(void *ctx) {
+	free(ctx);
+}

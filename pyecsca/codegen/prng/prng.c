@@ -14,7 +14,7 @@ mp_err prng_mp_rand(void *out, size_t size) {
 
 void prng_init(void) {
     KeccakWidth200_SpongePRG_Initialize(&keccak, 70);
-    mp_rand_source(prng_mp_rand);
+    mp_rand_source(&prng_mp_rand);
 }
 
 int prng_get(uint8_t *out, size_t size) {

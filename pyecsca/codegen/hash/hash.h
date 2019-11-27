@@ -18,4 +18,6 @@ void hash_init(void *ctx);
 
 void hash_final(void *ctx, int size, const uint8_t *msg, uint8_t *digest);
 
+void hash_free_ctx(void *ctx);
+
 #endif //HASH_H_

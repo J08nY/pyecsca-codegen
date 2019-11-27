@@ -1,31 +1,32 @@
-curve_t* curve_new(const named_bn_t **params, int num_params) {
+curve_t* curve_new() {
 	curve_t *result = malloc(sizeof(curve_t));
-	bn_init(&result->p);
-	{%- for param in params %}
+	{%- for param in params + ["p", "n", "h"] %}
 	bn_init(&result->{{ param }});
 	{%- endfor %}
-	bn_init(&result->n);
-	result->neutral = NULL;
+	result->generator = point_new();
+	result->neutral = point_new();
 
-	for (int i = 0; i < num_params; ++i) {
-		switch (params[i]->name) {
-			{%- for param in params %}
-			case '{{ param }}': bn_copy(params[i]->value, result->{{ param }});
-								break;
-			{%- endfor %}
-			default:
-				curve_free(result);
-				return NULL;
-		}
-	}
 	return result;
 }
 
 void curve_free(curve_t *curve) {
-	bn_clear(&curve->p);
-	{%- for param in params %}
+	{%- for param in params + ["p", "n", "h"] %}
 	bn_clear(&curve->{{ param }});
 	{%- endfor %}
-	bn_clear(&curve->n);
+	if (curve->generator) {
+		point_free(curve->generator);
+	}
+	if (curve->neutral) {
+		point_free(curve->neutral);
+	}
 	free(curve);
+}
+
+void curve_set_param(curve_t *curve, char name, const bn_t *value) {
+	switch (name) {
+	{%- for param in params + ["p", "n", "h"] %}
+		case '{{ param }}': bn_copy(value, &curve->{{ param }});
+							break;
+	{%- endfor %}
+	}
 }

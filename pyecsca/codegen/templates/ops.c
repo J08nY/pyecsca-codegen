@@ -10,6 +10,10 @@
 	{{ render_op(op, result, left, right, "curve->p")}}
 {%- endfor %}
 
+{%- for src, dst in returns.items() %}
+	bn_copy(&{{ src }}, &{{ dst }});
+{%- endfor %}
+
 {%- for free in frees %}
 	bn_clear(&{{ free }});
 {%- endfor %}

@@ -28,10 +28,10 @@ int hex_decode(int len, char* ascii_buf, uint8_t* data_buf)
 	if (len % 2 != 0)
 		return 1;
 
-	for(int i = 0; i < len; i+=2)
+	for(int i = 0; i < len/2; i++)
 	{
-		char n_hi = ascii_buf[i];
-		char n_lo = ascii_buf[i+1];
+		char n_hi = ascii_buf[i*2];
+		char n_lo = ascii_buf[i*2+1];
 
 		if(n_lo >= '0' && n_lo <= '9')
 			data_buf[i] = n_lo - '0';

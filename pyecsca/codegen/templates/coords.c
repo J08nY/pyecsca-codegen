@@ -1,3 +1,5 @@
+#include "coords.h"
+
 point_t *point_new(void) {
 	point_t *result = malloc(sizeof(point_t));
 	{%- for variable in variables %}
@@ -26,10 +28,34 @@ void point_free(point_t *point) {
 	free(point);
 }
 
-int point_to_affine(point_t *point, const char coord, curve_t *curve, bn_t *out) {
-	
+int point_to_affine(point_t *point, curve_t *curve, bn_t *out_x, bn_t *out_y) {
+	{%- include "ops.c" %}
+	{%- if "x" in allocations %}
+	if (out_x) {
+		bn_copy(&x, out_x);
+	}
+	{%- endif %}
+	{%- if "y" in allocations %}
+	if (out_y) {
+		bn_copy(&y, out_y);
+	}
+	{%- endif %}
+	{%- for free in to_affine_frees %}
+	bn_clear(&{{ free }});
+	{%- endfor %}
 }
 
 int point_from_affine(bn_t *x, bn_t *y, curve_t *curve, point_t *out) {
-
+  	{# XXX: This just works for the stuff currently in EFD. #}
+	{%- for variable in variables %}
+		{%- if variable in ("X", "Y") %}
+	bn_copy({{ variable | lower }}, &out->{{ variable }});
+		{%- endif %}
+		{%- if variable == "Z" %}
+	bn_from_int(1, &out->Z);
+		{%- endif %}
+		{%- if variable == "T" %}
+	bn_mod_mul(x, y, &curve->p, &out->T);
+		{%- endif %}
+	{%- endfor %}
 }
