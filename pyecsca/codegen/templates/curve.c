@@ -1,4 +1,8 @@
-curve_t* curve_new() {
+#include "curve.h"
+#include "point.h"
+#include <stdlib.h>
+
+curve_t* curve_new(void) {
 	curve_t *result = malloc(sizeof(curve_t));
 	{%- for param in params + ["p", "n", "h"] %}
 	bn_init(&result->{{ param }});

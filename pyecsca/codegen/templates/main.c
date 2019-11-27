@@ -1,13 +1,18 @@
 #include "hal/hal.h"
 #include "simpleserial/simpleserial.h"
+#include "asn1/asn1.h"
 #include "hash/hash.h"
-#include "bn.h"
-#include "prng.h"
-#include "defs.h"
+#include "mult/mult.h"
+#include "bn/bn.h"
+#include "prng/prng.h"
+#include "gen/defs.h"
+#include "point.h"
+#include "curve.h"
 #include "fat.h"
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdbool.h>
 
 static point_t *pubkey;
 static bn_t privkey;
@@ -90,7 +95,7 @@ static uint8_t cmd_generate(uint8_t *data, uint16_t len) {
 	simpleserial_put('s', priv_size, priv);
 	uint8_t pub[coord_size * {{ curve_parameters | length }}];
 	{%- for variable in curve_variables %}
-	bn_to_binpad(pubkey->{{ variable }}, pub + coord_size * {{ loop.index0 }}, coord_size);
+	bn_to_binpad(&pubkey->{{ variable }}, pub + coord_size * {{ loop.index0 }}, coord_size);
 	{%- endfor %}
 	simpleserial_put('w', coord_size * {{ curve_parameters | length }}, pub);
 	return 0;
@@ -136,6 +141,7 @@ static uint8_t cmd_scalar_mult(uint8_t *data, uint16_t len) {
 	// perform base point scalar mult with supplied scalar, return affine point.
 	bn_t scalar; bn_init(&scalar);
 	parse_data(data, len, "", parse_scalar_mult, (void *) &scalar);
+	size_t coord_size = bn_to_bin_size(&curve->p);
 
 	point_t *result = point_new();
 
@@ -143,11 +149,11 @@ static uint8_t cmd_scalar_mult(uint8_t *data, uint16_t len) {
 
 	uint8_t res[coord_size * {{ curve_parameters | length }}];
 	{%- for variable in curve_variables %}
-	bn_to_binpad(result->{{ variable }}, res + coord_size * {{ loop.index0 }}, coord_size);
+	bn_to_binpad(&result->{{ variable }}, res + coord_size * {{ loop.index0 }}, coord_size);
 	{%- endfor %}
 	simpleserial_put('w', coord_size * {{ curve_parameters | length }}, res);
 	bn_clear(&scalar);
-	point_free(&result);
+	point_free(result);
 	return 0;
 }
 
@@ -178,7 +184,7 @@ static uint8_t cmd_ecdh(uint8_t *data, uint16_t len) {
 	size_t size = bn_to_bin_size(&curve->p);
 
 	uint8_t x_raw[size];
-	bn_to_binpad(x, x_raw, size);
+	bn_to_binpad(&x, x_raw, size);
 
 	size_t h_size = hash_size(size);
 	void *h_ctx = hash_new_ctx();
@@ -217,21 +223,21 @@ static void parse_ecdsa_sig(const char *path, const uint8_t *data, size_t len, v
 
 static uint8_t cmd_ecdsa_sign(uint8_t *data, uint16_t len) {
 	//perform ECDSA signature on supplied data, output signature
-	fat_t data = fat_empty;
-	parse_data(data, len, "", parse_ecdsa_msg, (void *) &data);
+	fat_t msg = fat_empty;
+	parse_data(data, len, "", parse_ecdsa_msg, (void *) &msg);
 
-	size_t h_size = hash_size(data.len);
+	size_t h_size = hash_size(msg.len);
 	void *h_ctx = hash_new_ctx();
 	hash_init(h_ctx);
 	uint8_t h_out[h_size];
-	hash_final(h_ctx, data.len, data.value, h_out);
+	hash_final(h_ctx, msg.len, msg.value, h_out);
 	hash_free_ctx(h_ctx);
-	free(data.value);
+	free(msg.value);
 
 	bn_t h; bn_init(&h);
 	bn_from_bin(h_out, h_size, &h);
 
-	int mod_len = bn_bit_length(&curve->n)
+	int mod_len = bn_bit_length(&curve->n);
 
 	if (h_size * 8 > mod_len) {
 		bn_rsh(&h, (h_size * 8) - mod_len, &h);
@@ -249,13 +255,13 @@ static uint8_t cmd_ecdsa_sign(uint8_t *data, uint16_t len) {
 	bn_mod(&r, &curve->n, &r);
 
 	bn_t s; bn_init(&s);
-	bn_copy(&privkey, s);
-	bn_mul_mod(&s, &r, &curve->n, &s);
-	bn_add_mod(&s, &h, &curve->n, &s);
-	bn_div_mod(&s, &k, &curve->n, &s);
+	bn_copy(&privkey, &s);
+	bn_mod_mul(&s, &r, &curve->n, &s);
+	bn_mod_add(&s, &h, &curve->n, &s);
+	bn_mod_div(&s, &k, &curve->n, &s);
 
 	size_t result_len = 0;
-	uint8_t *result = as1n_der_encode(&r, &s, &result_len);
+	uint8_t *result = asn1_der_encode(&r, &s, &result_len);
 
 	simpleserial_put('s', result_len, result);
 	free(result);
@@ -269,23 +275,23 @@ static uint8_t cmd_ecdsa_sign(uint8_t *data, uint16_t len) {
 
 static uint8_t cmd_ecdsa_verify(uint8_t *data, uint16_t len) {
 	//perform ECDSA verification on supplied data and signature (and current pubkey), output status
-	fat_t data = fat_empty;
-	parse_data(data, len, "", parse_ecdsa_msg, (void *) &data);
+	fat_t msg = fat_empty;
+	parse_data(data, len, "", parse_ecdsa_msg, (void *) &msg);
 	fat_t sig = fat_empty;
 	parse_data(data, len, "", parse_ecdsa_sig, (void *) &sig);
 
-	size_t h_size = hash_size(data.len);
+	size_t h_size = hash_size(msg.len);
 	void *h_ctx = hash_new_ctx();
 	hash_init(h_ctx);
 	uint8_t h_out[h_size];
-	hash_final(h_ctx, data.len, data.value, h_out);
+	hash_final(h_ctx, msg.len, msg.value, h_out);
 	hash_free_ctx(h_ctx);
-	free(data.value);
+	free(msg.value);
 
 	bn_t h; bn_init(&h);
 	bn_from_bin(h_out, h_size, &h);
 
-	int mod_len = bn_bit_length(&curve->n)
+	int mod_len = bn_bit_length(&curve->n);
 
 	if (h_size * 8 > mod_len) {
 		bn_rsh(&h, (h_size * 8) - mod_len, &h);
@@ -294,7 +300,7 @@ static uint8_t cmd_ecdsa_verify(uint8_t *data, uint16_t len) {
 	bn_t r; bn_init(&r);
 	bn_t s; bn_init(&s);
 	if (!asn1_der_decode(sig.value, sig.len, &r, &s)) {
-		simpleserial_put('v', 1, "\0");
+		simpleserial_put('v', 1, (uint8_t *) "\0");
 		bn_clear(&r);
 		bn_clear(&s);
 		bn_clear(&h);
@@ -304,9 +310,9 @@ static uint8_t cmd_ecdsa_verify(uint8_t *data, uint16_t len) {
 	bn_t orig_r; bn_init(&orig_r);
 	bn_copy(&r, &orig_r);
 
-	bn_inv_mod(&s, &curve->n, &s);
-	bn_mul_mod(&r, &s, &curve->n, &r); //r = u2
-	bn_mul_mod(&h, &s, &curve->n, &h); //h = u1
+	bn_mod_inv(&s, &curve->n, &s);
+	bn_mod_mul(&r, &s, &curve->n, &r); //r = u2
+	bn_mod_mul(&h, &s, &curve->n, &h); //h = u1
 
 	point_t *p1 = point_new();
 	point_t *p2 = point_new();

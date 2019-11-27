@@ -1,4 +1,5 @@
-#include "coords.h"
+#include "point.h"
+#include <stdlib.h>
 
 point_t *point_new(void) {
 	point_t *result = malloc(sizeof(point_t));
@@ -28,7 +29,7 @@ void point_free(point_t *point) {
 	free(point);
 }
 
-int point_to_affine(point_t *point, curve_t *curve, bn_t *out_x, bn_t *out_y) {
+void point_to_affine(point_t *point, curve_t *curve, bn_t *out_x, bn_t *out_y) {
 	{%- include "ops.c" %}
 	{%- if "x" in allocations %}
 	if (out_x) {
@@ -45,7 +46,7 @@ int point_to_affine(point_t *point, curve_t *curve, bn_t *out_x, bn_t *out_y) {
 	{%- endfor %}
 }
 
-int point_from_affine(bn_t *x, bn_t *y, curve_t *curve, point_t *out) {
+void point_from_affine(bn_t *x, bn_t *y, curve_t *curve, point_t *out) {
   	{# XXX: This just works for the stuff currently in EFD. #}
 	{%- for variable in variables %}
 		{%- if variable in ("X", "Y") %}

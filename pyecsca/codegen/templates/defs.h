@@ -1,5 +1,13 @@
-#ifndef CURVE_H_
-#define CURVE_H_
+#ifndef DEFS_H_
+#define DEFS_H_
+
+#include "bn.h"
+
+typedef struct {
+	{%- for variable in variables %}
+	bn_t {{ variable }};
+	{%- endfor %}
+} point_t;
 
 typedef struct {
 	bn_t p;
@@ -12,10 +20,4 @@ typedef struct {
     point_t *neutral;
 } curve_t;
 
-curve_t* curve_new();
-
-void curve_free(curve_t *curve);
-
-void curve_set_param(curve_t *curve, char name, const bn_t *value);
-
-#endif //CURVE_H_
+#endif //DEFS_H_

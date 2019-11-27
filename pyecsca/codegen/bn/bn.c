@@ -89,6 +89,10 @@ void bn_mod_inv(const bn_t *one, const bn_t *mod, bn_t *out) {
 	mp_invmod(one, mod, out);
 }
 
+void bn_mod_pow(const bn_t *one, const bn_t *exp, const bn_t *mod, bn_t *out) {
+	mp_exptmod(one, exp, mod, out);
+}
+
 void bn_mod(const bn_t *one, const bn_t *mod, bn_t *out) {
 	mp_mod(one, mod, out);
 }

@@ -21,7 +21,7 @@ int prng_get(uint8_t *out, size_t size) {
     return KeccakWidth200_SpongePRG_Fetch(&keccak, out, size);
 }
 
-void prng_seed(uint8_t *seed, size_t size) {
+void prng_seed(const uint8_t *seed, size_t size) {
     KeccakWidth200_SpongePRG_Feed(&keccak, seed, size);
     KeccakWidth200_SpongePRG_Forget(&keccak);
 }
