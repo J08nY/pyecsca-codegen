@@ -57,7 +57,7 @@ void bn_rand_mod_sample(bn_t *out, const bn_t *mod) {
 
 void bn_rand_mod_reduce(bn_t *out, const bn_t *mod) {
 	int mod_len = bn_bit_length(mod);
-	mp_rand(out, (mod_len / (sizeof(mp_digit) * 8)) + 2);
+	mp_rand(out, (mod_len / MP_DIGIT_BIT) + 2);
 	mp_mod(out, mod, out);
 }
 
@@ -110,8 +110,8 @@ bool bn_eq(const bn_t *one, const bn_t *other) {
 }
 
 int bn_get_bit(const bn_t *bn, int which) {
-	int which_digit = which / (sizeof(mp_digit) * 8);
-	int which_bit = which % (sizeof(mp_digit) * 8);
+	int which_digit = which / MP_DIGIT_BIT;
+	int which_bit = which % MP_DIGIT_BIT;
 	if (bn->used <= which_digit) {
 		return 0;
 	}

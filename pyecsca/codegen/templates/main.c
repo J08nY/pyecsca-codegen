@@ -93,7 +93,7 @@ static uint8_t cmd_generate(uint8_t *data, uint16_t len) {
 	uint8_t priv[priv_size];
 	bn_to_bin(&privkey, priv);
 	simpleserial_put('s', priv_size, priv);
-	uint8_t pub[coord_size * {{ curve_parameters | length }}];
+	uint8_t pub[coord_size * {{ curve_variables | length }}];
 	{%- for variable in curve_variables %}
 	bn_to_binpad(&pubkey->{{ variable }}, pub + coord_size * {{ loop.index0 }}, coord_size);
 	{%- endfor %}
@@ -147,7 +147,7 @@ static uint8_t cmd_scalar_mult(uint8_t *data, uint16_t len) {
 
 	scalar_mult(&scalar, curve->generator, curve, result);
 
-	uint8_t res[coord_size * {{ curve_parameters | length }}];
+	uint8_t res[coord_size * {{ curve_variables | length }}];
 	{%- for variable in curve_variables %}
 	bn_to_binpad(&result->{{ variable }}, res + coord_size * {{ loop.index0 }}, coord_size);
 	{%- endfor %}

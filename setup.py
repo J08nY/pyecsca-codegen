@@ -30,10 +30,16 @@ setup(
             "matplotlib",
             "fastdtw",
             "asn1crypto",
-            "jinja2"
+            "jinja2",
+            "Click"
         ],
         extras_require={
             "typecheck": ["mypy"],
             "test": ["nose2", "parameterized","green", "coverage"]
-        }
+        },
+        entry_points="""
+            [console_scripts]
+            builder=pyecsca.codegen.builder:main
+            client=pyecsca.codegen.client:main
+        """
 )
