@@ -1,2 +1,6 @@
 /pyecsca_codegen.egg-info
 /pyecsca/codegen/tommath/
+.coverage
+htmlcov/
+
+__pycache__

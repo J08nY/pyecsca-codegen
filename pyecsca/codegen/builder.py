@@ -14,6 +14,7 @@ from typing import List, Set, Mapping, Any, Optional, Type, Tuple, MutableMappin
 import click
 from jinja2 import Environment, PackageLoader
 from pkg_resources import resource_filename
+from public import public
 from pyecsca.ec.coordinates import CoordinateModel
 from pyecsca.ec.formula import (Formula, AdditionFormula, DoublingFormula, TriplingFormula,
                                 NegationFormula, ScalingFormula, DifferentialAdditionFormula,
@@ -65,6 +66,7 @@ class EnumDefine(Enum):
         return list(e.name for e in cls)
 
 
+@public
 class Platform(EnumDefine):
     """Platform to build for."""
     HOST = "HOST"
@@ -73,6 +75,7 @@ class Platform(EnumDefine):
     STM32F3 = "CW308_STM32F3"
 
 
+@public
 class Multiplication(EnumDefine):
     """Base multiplication algorithm to use."""
     TOOM_COOK = "MUL_TOOM_COOK"
@@ -81,6 +84,7 @@ class Multiplication(EnumDefine):
     BASE = "MUL_BASE"
 
 
+@public
 class Squaring(EnumDefine):
     """Base squaring algorithm to use."""
     TOOM_COOK = "SQR_TOOM_COOK"
@@ -89,6 +93,7 @@ class Squaring(EnumDefine):
     BASE = "SQR_BASE"
 
 
+@public
 class Reduction(EnumDefine):
     """Modular reduction method used."""
     BARRETT = "RED_BARRETT"
@@ -96,6 +101,7 @@ class Reduction(EnumDefine):
     BASE = "RED_BASE"
 
 
+@public
 class HashType(EnumDefine):
     """Hash algorithm used in ECDH and ECDSA."""
     NONE = "HASH_NONE"
@@ -106,12 +112,14 @@ class HashType(EnumDefine):
     SHA512 = "HASH_SHA512"
 
 
+@public
 class RandomMod(EnumDefine):
     """Method of sampling a uniform integer modulo order."""
     SAMPLE = "MOD_RAND_SAMPLE"
     REDUCE = "MOD_RAND_REDUCE"
 
 
+@public
 @dataclass
 class Configuration(object):
     platform: Platform
@@ -251,8 +259,10 @@ def render_formula_impl(formula: Formula, short_circuit: bool = False) -> str:
 
 def render_scalarmult_impl(scalarmult: ScalarMultiplier) -> str:
     return env.get_template("mult.c").render(scalarmult=scalarmult, LTRMultiplier=LTRMultiplier,
-                                             RTLMultiplier=RTLMultiplier, CoronMultiplier=CoronMultiplier,
-                                             LadderMultiplier=LadderMultiplier, SimpleLadderMultiplier=SimpleLadderMultiplier,
+                                             RTLMultiplier=RTLMultiplier,
+                                             CoronMultiplier=CoronMultiplier,
+                                             LadderMultiplier=LadderMultiplier,
+                                             SimpleLadderMultiplier=SimpleLadderMultiplier,
                                              DifferentialLadderMultiplier=DifferentialLadderMultiplier,
                                              BinaryNAFMultiplier=BinaryNAFMultiplier)
 
@@ -272,6 +282,7 @@ def save_render(dir: str, fname: str, rendered: str):
         f.write(rendered)
 
 
+@public
 def render(config: Configuration) -> Tuple[str, str]:
     temp = tempfile.mkdtemp()
     symlinks = ["asn1", "bn", "hal", "hash", "mult", "prng", "simpleserial", "tommath", "fat.h",
@@ -292,6 +303,19 @@ def render(config: Configuration) -> Tuple[str, str]:
     save_render(gen_dir, "curve.c", render_curve_impl(config.model))
     save_render(gen_dir, "mult.c", render_scalarmult_impl(config.scalarmult))
     return temp, "pyecsca-codegen-{}.elf".format(str(config.platform))
+
+
+@public
+def render_and_build(config, outfile, strip=False, remove=True):
+    dir, file = render(config)
+
+    full_path = path.join(dir, file)
+    res = subprocess.run(["make"], cwd=dir, capture_output=True)
+    if strip:
+        subprocess.run(["strip", file], cwd=dir)
+    shutil.copy(full_path, outfile)
+    if remove:
+        shutil.rmtree(dir)
 
 
 def get_model(ctx: click.Context, param, value: str) -> CurveModel:
@@ -341,8 +365,8 @@ def get_multiplier(ctx: click.Context, param, value: Optional[str]) -> Optional[
     if value is None:
         return None
     res = re.match(
-        "(?P<name>[a-zA-Z\-]+)\((?P<args>([a-zA-Z_]+ *= *[a-zA-Z0-9]+, )*?([a-zA-Z_]+ *= *[a-zA-Z0-9]+)*)\)",
-        value)
+            "(?P<name>[a-zA-Z\-]+)\((?P<args>([a-zA-Z_]+ *= *[a-zA-Z0-9]+, )*?([a-zA-Z_]+ *= *[a-zA-Z0-9]+)*)\)",
+            value)
     if not res:
         raise click.BadParameter("Couldn't parse multiplier spec: {}.".format(value))
     name = res.group("name")
@@ -370,15 +394,15 @@ def get_multiplier(ctx: click.Context, param, value: Optional[str]) -> Optional[
     if not all(
             any(issubclass(cls, required) for cls in classes) for required in mult_class.requires):
         raise click.BadParameter(
-            "Multiplier {} requires formulas: {}, got {}.".format(mult_class.__name__,
-                                                                  mult_class.requires, classes))
+                "Multiplier {} requires formulas: {}, got {}.".format(mult_class.__name__,
+                                                                      mult_class.requires, classes))
     kwargs = eval("dict(" + args + ")")
     required = set(
-        filter(lambda formula: any(isinstance(formula, cls) for cls in mult_class.requires),
-               formulas))
+            filter(lambda formula: any(isinstance(formula, cls) for cls in mult_class.requires),
+                   formulas))
     optional = set(
-        filter(lambda formula: any(isinstance(formula, cls) for cls in mult_class.optionals),
-               formulas))
+            filter(lambda formula: any(isinstance(formula, cls) for cls in mult_class.optionals),
+                   formulas))
     for formula in required.union(optional):
         kwargs[formula.shortname] = formula
     mult = mult_class(**kwargs)
@@ -397,8 +421,10 @@ def wrap_enum(enum_class: Type[EnumDefine]):
     return callback
 
 
+
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option()
+@public
 def main():
     pass
 
@@ -440,6 +466,7 @@ def main():
 @click.argument("scalarmult", required=True,
                 callback=get_multiplier)
 @click.argument("outfile")
+@public
 def build(platform, hash, rand, mul, sqr, red, strip, remove, model, coords, formulas, scalarmult,
           outfile):
     """This command builds an ECC implementation.
@@ -477,6 +504,7 @@ def build(platform, hash, rand, mul, sqr, red, strip, remove, model, coords, for
                 callback=get_coords)
 @click.argument("formulas", required=False, nargs=-1,
                 callback=get_formula)
+@public
 def list(model: Optional[CurveModel], coords: Optional[CoordinateModel],
          formulas: Optional[Tuple[Formula]]):
     """This command lists possible choices for an ECC implementation.

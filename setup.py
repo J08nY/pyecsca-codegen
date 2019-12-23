@@ -20,7 +20,11 @@ setup(
             "Intended Audience :: Developers",
             "Intended Audience :: Science/Research"
         ],
-        install_package_data=True,
+        package_data={
+            "pyecsca.codegen" : ["*.h", "*.inc", "asn1/", "bn/", "hal/", "hash/", "prng/", "simpleserial/",
+                                 "templates/", "tommath/"]
+        },
+        #install_package_data=True,
         python_requires='>=3.7',
         install_requires=[
             "pyecsca",

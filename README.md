@@ -1,5 +1,7 @@
 # pyecsca-codegen
 
+[![Build Status](https://travis-ci.com/J08nY/pyecsca-codegen.svg?branch=master)](https://travis-ci.com/J08nY/pyecsca-codegen) ![License: MIT](https://img.shields.io/github/license/J08nY/pyecsca.svg) [![codecov](https://codecov.io/gh/J08nY/pyecsca-codegen/branch/master/graph/badge.svg)](https://codecov.io/gh/J08nY/pyecsca-codegen)
+
 **Py**thon **E**lliptic **C**urve cryptography **S**ide-**C**hannel **A**nalysis toolkit.
 
 Codegen package. See the [main repo](https://github.com/J08nY/pyecsca) for more information.

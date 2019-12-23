@@ -1,0 +1,25 @@
+language: python
+dist: xenial
+python:
+  - "3.7"
+  - "3.8"
+
+install:
+  - pip install codecov
+  - mkdir pyecsca/codegen/tommath
+  - cd ext/libtommath/
+  - make
+  - cp libtommath.a ../../pyecsca/codegen/tommath/libtommath-HOST.a
+  - cp tommath.h ../../pyecsca/codegen/tommath/tommath.h
+  - cd ../
+  - git clone https://github.com/J08nY/pyecsca
+  - cd pyecsca
+  - pip install -e .
+  - cd ../..
+  - pip install -e ".[test, typecheck]"
+
+script:
+  - nose2 -s test -C -v test_builder
+
+after_success:
+  - codecov

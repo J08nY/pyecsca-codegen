@@ -1,0 +1,10 @@
+include README.md
+graft pyecsca/codegen/asn1
+graft pyecsca/codegen/bn
+graft pyecsca/codegen/hal
+graft pyecsca/codegen/hash
+graft pyecsca/codegen/prng
+graft pyecsca/codegen/simpleserial
+graft pyecsca/codegen/templates
+graft pyecsca/codegen/tommath
+recursive-include pyecsca/codegen *.h *.inc
