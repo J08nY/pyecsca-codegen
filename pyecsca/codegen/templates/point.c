@@ -29,6 +29,15 @@ void point_free(point_t *point) {
 	free(point);
 }
 
+bool point_equals(const point_t *one, const point_t *other) {
+	{%- for variable in variables %}
+	if (!bn_eq(&one->{{ variable }}, &other->{{ variable }})) {
+		return false;
+	}
+	{%- endfor %}
+	return true;
+}
+
 void point_to_affine(point_t *point, curve_t *curve, bn_t *out_x, bn_t *out_y) {
 	{%- include "ops.c" %}
 	{%- if "x" in allocations %}

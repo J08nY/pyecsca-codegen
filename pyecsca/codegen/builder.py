@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 import os
+import re
 import shutil
 import subprocess
 import tempfile
 from ast import operator, Add, Sub, Mult, Div, Pow
+from copy import copy
 from dataclasses import dataclass
 from enum import Enum
 from os import path
@@ -18,6 +20,9 @@ from pyecsca.ec.formula import (Formula, AdditionFormula, DoublingFormula, Tripl
                                 LadderFormula)
 from pyecsca.ec.model import (CurveModel, ShortWeierstrassModel, MontgomeryModel, EdwardsModel,
                               TwistedEdwardsModel)
+from pyecsca.ec.mult import (ScalarMultiplier, LTRMultiplier, RTLMultiplier, CoronMultiplier,
+                             LadderMultiplier, SimpleLadderMultiplier, DifferentialLadderMultiplier,
+                             WindowNAFMultiplier, BinaryNAFMultiplier)
 from pyecsca.ec.op import CodeOp
 
 env = Environment(
@@ -38,11 +43,14 @@ def render_op(op: operator, result: str, left: str, right: str, mod: str) -> Opt
         return "bn_mod_sqr(&{}, &{}, &{});".format(left, mod, result)
     elif isinstance(op, Pow):
         return "bn_mod_pow(&{}, &{}, &{}, &{});".format(left, right, mod, result)
+    elif op is None:
+        return "bn_copy(&{}, &{});".format(left, result)
     else:
         print(op, result, left, right, mod)
 
 
 env.globals["render_op"] = render_op
+env.globals["isinstance"] = isinstance
 
 
 class EnumDefine(Enum):
@@ -58,6 +66,7 @@ class EnumDefine(Enum):
 
 
 class Platform(EnumDefine):
+    """Platform to build for."""
     HOST = "HOST"
     XMEGA = "CW308_XMEGA"
     STM32F0 = "CW308_STM32F0"
@@ -65,6 +74,7 @@ class Platform(EnumDefine):
 
 
 class Multiplication(EnumDefine):
+    """Base multiplication algorithm to use."""
     TOOM_COOK = "MUL_TOOM_COOK"
     KARATSUBA = "MUL_KARATSUBA"
     COMBA = "MUL_COMBA"
@@ -72,6 +82,7 @@ class Multiplication(EnumDefine):
 
 
 class Squaring(EnumDefine):
+    """Base squaring algorithm to use."""
     TOOM_COOK = "SQR_TOOM_COOK"
     KARATSUBA = "SQR_KARATSUBA"
     COMBA = "SQR_COMBA"
@@ -79,12 +90,14 @@ class Squaring(EnumDefine):
 
 
 class Reduction(EnumDefine):
+    """Modular reduction method used."""
     BARRETT = "RED_BARRETT"
     MONTGOMERY = "RED_MONTGOMERY"
     BASE = "RED_BASE"
 
 
 class HashType(EnumDefine):
+    """Hash algorithm used in ECDH and ECDSA."""
     NONE = "HASH_NONE"
     SHA1 = "HASH_SHA1"
     SHA224 = "HASH_SHA224"
@@ -93,12 +106,8 @@ class HashType(EnumDefine):
     SHA512 = "HASH_SHA512"
 
 
-class ScalarMultAlgo(EnumDefine):
-    NONE = "MULT_NONE"
-    DOUBLE_AND_ADD = "MULT_DOUBLE_AND_ADD"
-
-
 class RandomMod(EnumDefine):
+    """Method of sampling a uniform integer modulo order."""
     SAMPLE = "MOD_RAND_SAMPLE"
     REDUCE = "MOD_RAND_REDUCE"
 
@@ -107,7 +116,6 @@ class RandomMod(EnumDefine):
 class Configuration(object):
     platform: Platform
     hash_type: HashType
-    mult_algo: ScalarMultAlgo
     mod_rand: RandomMod
     mult: Multiplication  # TODO: Use this
     sqr: Squaring  # TODO: Use this
@@ -115,6 +123,7 @@ class Configuration(object):
     model: CurveModel
     coords: CoordinateModel
     formulas: List[Formula]
+    scalarmult: ScalarMultiplier
 
 
 def render_defs(model: CurveModel, coords: CoordinateModel) -> str:
@@ -203,7 +212,7 @@ def render_coords_impl(coords: CoordinateModel) -> str:
                                               to_affine_rets=returns, to_affine_frees=frees)
 
 
-def render_formula_impl(formula: Formula) -> str:
+def render_formula_impl(formula: Formula, short_circuit: bool = False) -> str:
     if isinstance(formula, AdditionFormula):
         tname = "formula_add.c"
     elif isinstance(formula, DoublingFormula):
@@ -236,7 +245,16 @@ def render_formula_impl(formula: Formula) -> str:
         renames[output] = "{}->{}".format(outputs[num], var)
     namespace = transform_ops(formula.code, formula.coordinate_model.curve_model.parameter_names,
                               formula.outputs, renames)
+    namespace["short_circuit"] = short_circuit
     return template.render(namespace)
+
+
+def render_scalarmult_impl(scalarmult: ScalarMultiplier) -> str:
+    return env.get_template("mult.c").render(scalarmult=scalarmult, LTRMultiplier=LTRMultiplier,
+                                             RTLMultiplier=RTLMultiplier, CoronMultiplier=CoronMultiplier,
+                                             LadderMultiplier=LadderMultiplier, SimpleLadderMultiplier=SimpleLadderMultiplier,
+                                             DifferentialLadderMultiplier=DifferentialLadderMultiplier,
+                                             BinaryNAFMultiplier=BinaryNAFMultiplier)
 
 
 def render_main(model: CurveModel, coords: CoordinateModel) -> str:
@@ -244,10 +262,9 @@ def render_main(model: CurveModel, coords: CoordinateModel) -> str:
                                              curve_parameters=model.parameter_names)
 
 
-def render_makefile(platform: Platform, hash_type: HashType, mult_algo: ScalarMultAlgo,
-                    mod_rand: RandomMod) -> str:
+def render_makefile(platform: Platform, hash_type: HashType, mod_rand: RandomMod) -> str:
     return env.get_template("Makefile").render(platform=str(platform), hash_type=str(hash_type),
-                                               mult_algo=str(mult_algo), mod_rand=str(mod_rand))
+                                               mod_rand=str(mod_rand))
 
 
 def save_render(dir: str, fname: str, rendered: str):
@@ -258,22 +275,22 @@ def save_render(dir: str, fname: str, rendered: str):
 def render(config: Configuration) -> Tuple[str, str]:
     temp = tempfile.mkdtemp()
     symlinks = ["asn1", "bn", "hal", "hash", "mult", "prng", "simpleserial", "tommath", "fat.h",
-                "point.h", "curve.h", "Makefile.inc"]
+                "point.h", "curve.h", "mult.h", "Makefile.inc"]
     for sym in symlinks:
         os.symlink(resource_filename("pyecsca.codegen", sym), path.join(temp, sym))
     gen_dir = path.join(temp, "gen")
     os.mkdir(gen_dir)
     save_render(temp, "Makefile",
-                render_makefile(config.platform, config.hash_type, config.mult_algo,
-                                config.mod_rand))
+                render_makefile(config.platform, config.hash_type, config.mod_rand))
     save_render(temp, "main.c", render_main(config.model, config.coords))
     save_render(gen_dir, "defs.h", render_defs(config.model, config.coords))
     point_render = render_coords_impl(config.coords)
     for formula in config.formulas:
         point_render += "\n"
-        point_render += render_formula_impl(formula)
+        point_render += render_formula_impl(formula, config.scalarmult.short_circuit)
     save_render(gen_dir, "point.c", point_render)
     save_render(gen_dir, "curve.c", render_curve_impl(config.model))
+    save_render(gen_dir, "mult.c", render_scalarmult_impl(config.scalarmult))
     return temp, "pyecsca-codegen-{}.elf".format(str(config.platform))
 
 
@@ -314,7 +331,58 @@ def get_formula(ctx: click.Context, param, value: Optional[Tuple[str]]) -> List[
             raise click.BadParameter(
                     "Formula '{}' is not a formula in '{}'.".format(formula, coords))
         result.append(coords.formulas[formula])
+    if len(set(formula.__class__ for formula in result)) != len(result):
+        raise click.BadParameter("Duplicate formula types.")
+    ctx.meta["formulas"] = copy(result)
     return result
+
+
+def get_multiplier(ctx: click.Context, param, value: Optional[str]) -> Optional[ScalarMultiplier]:
+    if value is None:
+        return None
+    res = re.match(
+        "(?P<name>[a-zA-Z\-]+)\((?P<args>([a-zA-Z_]+ *= *[a-zA-Z0-9]+, )*?([a-zA-Z_]+ *= *[a-zA-Z0-9]+)*)\)",
+        value)
+    if not res:
+        raise click.BadParameter("Couldn't parse multiplier spec: {}.".format(value))
+    name = res.group("name")
+    args = res.group("args")
+    if name in ("ltr", "LTRMultiplier"):
+        mult_class = LTRMultiplier
+    elif name in ("rtl", "RTLMultiplier"):
+        mult_class = RTLMultiplier
+    elif name in ("coron", "CoronMultiplier"):
+        mult_class = CoronMultiplier
+    elif name in ("ldr", "LadderMultiplier"):
+        mult_class = LadderMultiplier
+    elif name in ("simple-ldr", "SimpleLadderMultiplier"):
+        mult_class = SimpleLadderMultiplier
+    elif name in ("diff-ldr", "DifferentialLadderMultiplier"):
+        mult_class = DifferentialLadderMultiplier
+    elif name in ("naf", "bnaf", "BinaryNAFMultiplier"):
+        mult_class = BinaryNAFMultiplier
+    elif name in ("wnaf", "WindowNAFMultiplier"):
+        mult_class = WindowNAFMultiplier
+    else:
+        raise click.BadParameter("Unknown multiplier: {}.".format(name))
+    formulas = ctx.meta["formulas"]
+    classes = set(formula.__class__ for formula in formulas)
+    if not all(
+            any(issubclass(cls, required) for cls in classes) for required in mult_class.requires):
+        raise click.BadParameter(
+            "Multiplier {} requires formulas: {}, got {}.".format(mult_class.__name__,
+                                                                  mult_class.requires, classes))
+    kwargs = eval("dict(" + args + ")")
+    required = set(
+        filter(lambda formula: any(isinstance(formula, cls) for cls in mult_class.requires),
+               formulas))
+    optional = set(
+        filter(lambda formula: any(isinstance(formula, cls) for cls in mult_class.optionals),
+               formulas))
+    for formula in required.union(optional):
+        kwargs[formula.shortname] = formula
+    mult = mult_class(**kwargs)
+    return mult
 
 
 def wrap_enum(enum_class: Type[EnumDefine]):
@@ -344,10 +412,6 @@ def main():
               type=click.Choice(HashType.names()),
               callback=wrap_enum(HashType),
               help="The hash algorithm to use (in ECDH and ECDSA).")
-@click.option("--mult", envvar="MULT_ALGO", required=True,
-              type=click.Choice(ScalarMultAlgo.names()),
-              callback=wrap_enum(ScalarMultAlgo),
-              help="The scalar multiplication algorithm to use.")
 @click.option("--rand", envvar="MOD_RAND", default="SAMPLE", show_default=True,
               type=click.Choice(RandomMod.names()),
               callback=wrap_enum(RandomMod),
@@ -373,17 +437,22 @@ def main():
                 callback=get_coords)
 @click.argument("formulas", required=True, nargs=-1,
                 callback=get_formula)
+@click.argument("scalarmult", required=True,
+                callback=get_multiplier)
 @click.argument("outfile")
-def build(platform, hash, mult, rand, mul, sqr, red, strip, remove, model, coords, formulas, outfile):
+def build(platform, hash, rand, mul, sqr, red, strip, remove, model, coords, formulas, scalarmult,
+          outfile):
     """This command builds an ECC implementation.
 
     \b
     MODEL: The curve model to use.
     COORDS: The coordinate model to use.
     FORMULAS: The formulas to use.
+    MULT: The scalar multiplication algorithm to use.
     OUTFILE: The output binary file with the built impl.
     """
-    config = Configuration(platform, hash, mult, rand, mul, sqr, red, model, coords, formulas)
+
+    config = Configuration(platform, hash, rand, mul, sqr, red, model, coords, formulas, scalarmult)
     dir, file = render(config)
 
     full_path = path.join(dir, file)

@@ -2,10 +2,10 @@
 #include "simpleserial/simpleserial.h"
 #include "asn1/asn1.h"
 #include "hash/hash.h"
-#include "mult/mult.h"
 #include "bn/bn.h"
 #include "prng/prng.h"
 #include "gen/defs.h"
+#include "mult.h"
 #include "point.h"
 #include "curve.h"
 #include "fat.h"
@@ -97,7 +97,7 @@ static uint8_t cmd_generate(uint8_t *data, uint16_t len) {
 	{%- for variable in curve_variables %}
 	bn_to_binpad(&pubkey->{{ variable }}, pub + coord_size * {{ loop.index0 }}, coord_size);
 	{%- endfor %}
-	simpleserial_put('w', coord_size * {{ curve_parameters | length }}, pub);
+	simpleserial_put('w', coord_size * {{ curve_variables | length }}, pub);
 	return 0;
 }
 
@@ -138,7 +138,7 @@ static void parse_scalar_mult(const char *path, const uint8_t *data, size_t len,
 }
 
 static uint8_t cmd_scalar_mult(uint8_t *data, uint16_t len) {
-	// perform base point scalar mult with supplied scalar, return affine point.
+	// perform base point scalar mult with supplied scalar.
 	bn_t scalar; bn_init(&scalar);
 	parse_data(data, len, "", parse_scalar_mult, (void *) &scalar);
 	size_t coord_size = bn_to_bin_size(&curve->p);
@@ -151,7 +151,7 @@ static uint8_t cmd_scalar_mult(uint8_t *data, uint16_t len) {
 	{%- for variable in curve_variables %}
 	bn_to_binpad(&result->{{ variable }}, res + coord_size * {{ loop.index0 }}, coord_size);
 	{%- endfor %}
-	simpleserial_put('w', coord_size * {{ curve_parameters | length }}, res);
+	simpleserial_put('w', coord_size * {{ curve_variables | length }}, res);
 	bn_clear(&scalar);
 	point_free(result);
 	return 0;

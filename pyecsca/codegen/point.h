@@ -11,6 +11,8 @@ void point_set(const point_t *from, point_t *out);
 
 void point_free(point_t *point);
 
+bool point_equals(const point_t *one, const point_t *other);
+
 void point_to_affine(point_t *point, curve_t *curve, bn_t *out_x, bn_t *out_y);
 
 void point_from_affine(bn_t *x, bn_t *y, curve_t *curve, point_t *out);

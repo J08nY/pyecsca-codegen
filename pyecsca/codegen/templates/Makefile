@@ -1,14 +1,14 @@
 TARGET = pyecsca-codegen
 
-SRC += main.c bn/bn.c asn1/asn1.c hash/hash.c mult/mult.c prng/prng.c gen/point.c gen/curve.c
+SRC += main.c bn/bn.c asn1/asn1.c hash/hash.c prng/prng.c gen/point.c gen/curve.c gen/mult.c
 
 PLATFORM = {{ platform }}
 
-CDEFS += -DHASH={{ hash_type }} -DMULT={{ mult_algo }} -DMOD_RAND={{ mod_rand }}
+CDEFS += -DHASH={{ hash_type }} -DMOD_RAND={{ mod_rand }}
 
-MKDIR_LIST += hash prng mult asn1 bn gen
+MKDIR_LIST += hash prng asn1 bn gen
 
-EXTRAINCDIRS += hash prng mult asn1 bn gen tommath
+EXTRAINCDIRS += hash prng asn1 bn gen tommath
 
 LDFLAGS += tommath/libtommath-{{ platform }}.a
 
