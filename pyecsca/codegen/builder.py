@@ -133,6 +133,41 @@ class Configuration(object):
     formulas: List[Formula]
     scalarmult: ScalarMultiplier
 
+MULTIPLIERS = [
+    {
+        "name": ("rtl", "RTLMultiplier"),
+        "class": LTRMultiplier
+    },
+    {
+        "name": ("rtl", "RTLMultiplier"),
+        "class": RTLMultiplier
+    },
+    {
+        "name": ("coron", "CoronMultiplier"),
+        "class": CoronMultiplier
+    },
+    {
+        "name":("ldr", "LadderMultiplier"),
+        "class": LadderMultiplier
+    },
+    {
+        "name": ("simple-ldr", "SimpleLadderMultiplier"),
+        "class": SimpleLadderMultiplier
+    },
+    {
+        "name": ("diff-ldr", "DifferentialLadderMultiplier"),
+        "class": DifferentialLadderMultiplier
+    },
+    {
+        "name": ("naf", "bnaf", "BinaryNAFMultiplier"),
+        "class": BinaryNAFMultiplier
+    },
+    {
+        "name": ("wnaf", "WindowNAFMultiplier"),
+        "class": WindowNAFMultiplier
+    }
+]
+
 
 def render_defs(model: CurveModel, coords: CoordinateModel) -> str:
     return env.get_template("defs.h").render(params=model.parameter_names,
@@ -283,7 +318,7 @@ def save_render(dir: str, fname: str, rendered: str):
 
 
 @public
-def render(config: Configuration) -> Tuple[str, str]:
+def render(config: Configuration) -> Tuple[str, str, str]:
     temp = tempfile.mkdtemp()
     symlinks = ["asn1", "bn", "hal", "hash", "mult", "prng", "simpleserial", "tommath", "fat.h",
                 "point.h", "curve.h", "mult.h", "Makefile.inc"]
@@ -302,23 +337,29 @@ def render(config: Configuration) -> Tuple[str, str]:
     save_render(gen_dir, "point.c", point_render)
     save_render(gen_dir, "curve.c", render_curve_impl(config.model))
     save_render(gen_dir, "mult.c", render_scalarmult_impl(config.scalarmult))
-    return temp, "pyecsca-codegen-{}.elf".format(str(config.platform))
+    return temp, "pyecsca-codegen-{}.elf".format(str(config.platform)), "pyecsca-codegen-{}.hex".format(str(config.platform))
 
 
 @public
-def render_and_build(config, outfile, strip=False, remove=True):
-    dir, file = render(config)
+def render_and_build(config, outdir, strip=False, remove=True):
+    dir, elf_file, hex_file = render(config)
 
-    full_path = path.join(dir, file)
     res = subprocess.run(["make"], cwd=dir, capture_output=True)
+    if res.returncode != 0:
+        raise ValueError("Build failed!")
     if strip:
-        subprocess.run(["strip", file], cwd=dir)
-    shutil.copy(full_path, outfile)
+        subprocess.run(["strip", elf_file], cwd=dir)
+    full_elf_path = path.join(dir, elf_file)
+    full_hex_path = path.join(dir, hex_file)
+    shutil.copy(full_elf_path, outdir)
+    shutil.copy(full_hex_path, outdir)
     if remove:
         shutil.rmtree(dir)
 
 
 def get_model(ctx: click.Context, param, value: str) -> CurveModel:
+    if value is None:
+        return None
     classes = {
         "shortw": ShortWeierstrassModel,
         "montgom": MontgomeryModel,
@@ -371,23 +412,12 @@ def get_multiplier(ctx: click.Context, param, value: Optional[str]) -> Optional[
         raise click.BadParameter("Couldn't parse multiplier spec: {}.".format(value))
     name = res.group("name")
     args = res.group("args")
-    if name in ("ltr", "LTRMultiplier"):
-        mult_class = LTRMultiplier
-    elif name in ("rtl", "RTLMultiplier"):
-        mult_class = RTLMultiplier
-    elif name in ("coron", "CoronMultiplier"):
-        mult_class = CoronMultiplier
-    elif name in ("ldr", "LadderMultiplier"):
-        mult_class = LadderMultiplier
-    elif name in ("simple-ldr", "SimpleLadderMultiplier"):
-        mult_class = SimpleLadderMultiplier
-    elif name in ("diff-ldr", "DifferentialLadderMultiplier"):
-        mult_class = DifferentialLadderMultiplier
-    elif name in ("naf", "bnaf", "BinaryNAFMultiplier"):
-        mult_class = BinaryNAFMultiplier
-    elif name in ("wnaf", "WindowNAFMultiplier"):
-        mult_class = WindowNAFMultiplier
-    else:
+    mult_class = None
+    for mult_def in MULTIPLIERS:
+        if name in mult_def["name"]:
+            mult_class = mult_def["class"]
+            break
+    if mult_class is None:
         raise click.BadParameter("Unknown multiplier: {}.".format(name))
     formulas = ctx.meta["formulas"]
     classes = set(formula.__class__ for formula in formulas)
@@ -429,7 +459,7 @@ def main():
     pass
 
 
-@main.command()
+@main.command("build")
 @click.option("--platform", envvar="PLATFORM", required=True,
               type=click.Choice(Platform.names()),
               callback=wrap_enum(Platform),
@@ -456,6 +486,7 @@ def main():
               help="Modular reduction algorithm to use.")
 @click.option("--strip", help="Whether to strip the binary or not.", is_flag=True)
 @click.option("--remove/--no-remove", help="Whether to remove the dir.", is_flag=True, default=True)
+@click.option("-v", "--verbose", count=True)
 @click.argument("model", required=True,
                 type=click.Choice(["shortw", "montgom", "edwards", "twisted"]),
                 callback=get_model)
@@ -465,10 +496,10 @@ def main():
                 callback=get_formula)
 @click.argument("scalarmult", required=True,
                 callback=get_multiplier)
-@click.argument("outfile")
+@click.argument("outdir")
 @public
-def build(platform, hash, rand, mul, sqr, red, strip, remove, model, coords, formulas, scalarmult,
-          outfile):
+def build_impl(platform, hash, rand, mul, sqr, red, strip, remove, verbose, model, coords, formulas, scalarmult,
+          outdir):
     """This command builds an ECC implementation.
 
     \b
@@ -476,43 +507,48 @@ def build(platform, hash, rand, mul, sqr, red, strip, remove, model, coords, for
     COORDS: The coordinate model to use.
     FORMULAS: The formulas to use.
     MULT: The scalar multiplication algorithm to use.
-    OUTFILE: The output binary file with the built impl.
+    OUTDIR: The output directory for files with the built impl.
     """
 
     config = Configuration(platform, hash, rand, mul, sqr, red, model, coords, formulas, scalarmult)
-    dir, file = render(config)
+    dir, elf_file, hex_file = render(config)
 
-    full_path = path.join(dir, file)
+
     res = subprocess.run(["make"], cwd=dir, capture_output=True)
-    click.echo(res.stdout.decode())
+    if verbose >= 1:
+        click.echo(res.stdout.decode())
+
     if strip:
-        click.echo(path.getsize(full_path))
-        subprocess.run(["strip", file], cwd=dir)
-        click.echo(path.getsize(full_path))
-    shutil.copy(full_path, outfile)
+        subprocess.run(["strip", elf_file], cwd=dir)
+    full_elf_path = path.join(dir, elf_file)
+    full_hex_path = path.join(dir, hex_file)
+    shutil.copy(full_elf_path, outdir)
+    shutil.copy(full_hex_path, outdir)
     if remove:
         shutil.rmtree(dir)
     else:
         click.echo(dir)
 
 
-@main.command()
+@main.command("list")
 @click.argument("model",
                 type=click.Choice(["shortw", "montgom", "edwards", "twisted"]),
-                callback=get_model)
+                callback=get_model, required=False)
 @click.argument("coords", required=False,
                 callback=get_coords)
 @click.argument("formulas", required=False, nargs=-1,
                 callback=get_formula)
 @public
-def list(model: Optional[CurveModel], coords: Optional[CoordinateModel],
+def list_impl(model: Optional[CurveModel], coords: Optional[CoordinateModel],
          formulas: Optional[Tuple[Formula]]):
     """This command lists possible choices for an ECC implementation.
+    If no arguments are provided the argument lists other implementation options,
+    such as modular reduction algorithms, build platforms and so on.
 
     \b
-    MODEL: The curve model to use.
-    COORDS: The coordinate model to use.
-    FORMULAS: The formulas to use.
+    MODEL: The curve model to list.
+    COORDS: The coordinate model to list.
+    FORMULAS: The formulas to list.
     """
     if formulas:
         for formula in formulas:
@@ -538,6 +574,46 @@ def list(model: Optional[CurveModel], coords: Optional[CoordinateModel],
             click.echo(
                     "{}: {}, [{}]".format(coord.name, coord.full_name, ",".join(coord.variables)))
         return
+    if not model:
+        click.echo(click.wrap_text("Platform:\n\t" + ", ".join(Platform.names()),subsequent_indent="\t"))
+        click.echo(click.wrap_text("Hash type:\n\t" + ", ".join(HashType.names()),subsequent_indent="\t"))
+        click.echo(click.wrap_text("Modular Random:\n\t" + ", ".join(RandomMod.names()),subsequent_indent="\t"))
+        click.echo(click.wrap_text("Multiplication:\n\t" + ", ".join(Multiplication.names()),subsequent_indent="\t"))
+        click.echo(click.wrap_text("Squaring:\n\t" + ", ".join(Squaring.names()),subsequent_indent="\t"))
+        click.echo(click.wrap_text("Modular Reduction:\n\t" + ", ".join(Reduction.names()),subsequent_indent="\t"))
+        click.echo(click.wrap_text("Scalar multplier:\n\t" + ", ".join(map(lambda m: m["name"][-1], MULTIPLIERS)),
+                                   subsequent_indent="\t"))
+
+
+@main.command()
+@click.option("--platform", envvar="PLATFORM", required=True,
+              type=click.Choice(Platform.names()),
+              callback=wrap_enum(Platform),
+              help="The platform to flash.")
+@click.argument("dir")
+@public
+def flash(platform, dir):
+    """This command flashes a chip through the ChipWhisperer framework with the built implementation.
+
+    \b
+    DIR: The directory containing the built implementation (output directory of the build command).
+    """
+    try:
+        import chipwhisperer as cw
+    except ImportError:
+        click.secho("ChipWhisperer not installed, flashing requires it.", fg="red", err=True)
+        return
+    if platform in (Platform.STM32F0, Platform.STM32F3):
+        prog = cw.programmers.STM32FProgrammer
+    elif platform == Platform.XMEGA:
+        prog = cw.programmers.XMEGAProgrammer
+    else:
+        click.secho("Flashing the HOST is not required, just run the ELF and communicate with it via the standard IO.", fg="red", err=True)
+        return
+    fw_path = path.join(dir, "pyecsca-codegen-{}.hex".format(platform))
+    scope = cw.scope()
+    scope.default_setup()
+    cw.program_target(scope, prog, fw_path)
 
 
 if __name__ == "__main__":

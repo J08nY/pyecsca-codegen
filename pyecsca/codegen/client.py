@@ -99,6 +99,7 @@ def cmd_ecdsa_verify(data: bytes, sig: bytes) -> str:
 @click.command()
 @click.version_option()
 def main():
+    import chipwhisperer
     pass
     # model = ShortWeierstrassModel()
     # coords = model.coordinates["projective"]

@@ -38,6 +38,7 @@ setup(
             "Click"
         ],
         extras_require={
+            "chipshiwperer": ["chipwhisperer"],
             "typecheck": ["mypy"],
             "test": ["nose2", "parameterized","green", "coverage"]
         },

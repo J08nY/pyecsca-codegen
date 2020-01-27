@@ -4,6 +4,7 @@ from unittest import TestCase
 
 from click.testing import CliRunner
 from pyecsca.ec.curves import get_curve
+from pyecsca.ec.formula import Formula
 from pyecsca.ec.mod import Mod
 from pyecsca.ec.mult import LTRMultiplier
 from pyecsca.ec.point import Point
@@ -33,8 +34,7 @@ class BuilderTests(TestCase):
         config = Configuration(platform, hash_type, mod_rand, mult, sqr, red, model, coords,
                                formulas, scalarmult)
         temp = tempfile.mkdtemp()
-        binary = join(temp, "test.elf")
-        render_and_build(config, binary)
+        render_and_build(config, temp)
 
     def test_cli_build(self):
         runner = CliRunner()
