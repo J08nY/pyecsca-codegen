@@ -4,12 +4,10 @@ import re
 import shutil
 import subprocess
 import tempfile
-from ast import operator, Add, Sub, Mult, Div, Pow
+from ast import Pow
 from copy import copy
-from dataclasses import dataclass
-from enum import Enum
 from os import path
-from typing import List, Set, Mapping, Any, Optional, Type, Tuple, MutableMapping
+from typing import List, Set, Mapping, Any, Optional, Tuple, MutableMapping
 
 import click
 from jinja2 import Environment, PackageLoader
@@ -23,150 +21,39 @@ from pyecsca.ec.model import (CurveModel, ShortWeierstrassModel, MontgomeryModel
                               TwistedEdwardsModel)
 from pyecsca.ec.mult import (ScalarMultiplier, LTRMultiplier, RTLMultiplier, CoronMultiplier,
                              LadderMultiplier, SimpleLadderMultiplier, DifferentialLadderMultiplier,
-                             WindowNAFMultiplier, BinaryNAFMultiplier)
-from pyecsca.ec.op import CodeOp
+                             BinaryNAFMultiplier)
+from pyecsca.ec.op import CodeOp, OpType
+
+from .common import (Platform, Multiplication, Squaring, Reduction, HashType, RandomMod,
+                     Configuration, MULTIPLIERS, wrap_enum)
 
 env = Environment(
         loader=PackageLoader("pyecsca.codegen")
 )
 
 
-def render_op(op: operator, result: str, left: str, right: str, mod: str) -> Optional[str]:
-    if isinstance(op, Add):
+def render_op(op: OpType, result: str, left: str, right: str, mod: str) -> Optional[str]:
+    if op == OpType.Add:
         return "bn_mod_add(&{}, &{}, &{}, &{});".format(left, right, mod, result)
-    elif isinstance(op, Sub):
+    elif op == OpType.Sub:
         return "bn_mod_sub(&{}, &{}, &{}, &{});".format(left, right, mod, result)
-    elif isinstance(op, Mult):
+    elif op == OpType.Mult:
         return "bn_mod_mul(&{}, &{}, &{}, &{});".format(left, right, mod, result)
-    elif isinstance(op, Div):
+    elif op == OpType.Div or op == OpType.Inv:
         return "bn_mod_div(&{}, &{}, &{}, &{});".format(left, right, mod, result)
-    elif isinstance(op, Pow) and right == 2:
+    elif op == OpType.Sqr:
         return "bn_mod_sqr(&{}, &{}, &{});".format(left, mod, result)
-    elif isinstance(op, Pow):
+    elif op == OpType.Pow:
         return "bn_mod_pow(&{}, &{}, &{}, &{});".format(left, right, mod, result)
-    elif op is None:
+    elif op == OpType.Id:
         return "bn_copy(&{}, &{});".format(left, result)
     else:
         print(op, result, left, right, mod)
+        return None
 
 
 env.globals["render_op"] = render_op
 env.globals["isinstance"] = isinstance
-
-
-class EnumDefine(Enum):
-    def __str__(self):
-        return self.value
-
-    def __repr__(self):
-        return self.value
-
-    @classmethod
-    def names(cls):
-        return list(e.name for e in cls)
-
-
-@public
-class Platform(EnumDefine):
-    """Platform to build for."""
-    HOST = "HOST"
-    XMEGA = "CW308_XMEGA"
-    STM32F0 = "CW308_STM32F0"
-    STM32F3 = "CW308_STM32F3"
-
-
-@public
-class Multiplication(EnumDefine):
-    """Base multiplication algorithm to use."""
-    TOOM_COOK = "MUL_TOOM_COOK"
-    KARATSUBA = "MUL_KARATSUBA"
-    COMBA = "MUL_COMBA"
-    BASE = "MUL_BASE"
-
-
-@public
-class Squaring(EnumDefine):
-    """Base squaring algorithm to use."""
-    TOOM_COOK = "SQR_TOOM_COOK"
-    KARATSUBA = "SQR_KARATSUBA"
-    COMBA = "SQR_COMBA"
-    BASE = "SQR_BASE"
-
-
-@public
-class Reduction(EnumDefine):
-    """Modular reduction method used."""
-    BARRETT = "RED_BARRETT"
-    MONTGOMERY = "RED_MONTGOMERY"
-    BASE = "RED_BASE"
-
-
-@public
-class HashType(EnumDefine):
-    """Hash algorithm used in ECDH and ECDSA."""
-    NONE = "HASH_NONE"
-    SHA1 = "HASH_SHA1"
-    SHA224 = "HASH_SHA224"
-    SHA256 = "HASH_SHA256"
-    SHA384 = "HASH_SHA384"
-    SHA512 = "HASH_SHA512"
-
-
-@public
-class RandomMod(EnumDefine):
-    """Method of sampling a uniform integer modulo order."""
-    SAMPLE = "MOD_RAND_SAMPLE"
-    REDUCE = "MOD_RAND_REDUCE"
-
-
-@public
-@dataclass
-class Configuration(object):
-    platform: Platform
-    hash_type: HashType
-    mod_rand: RandomMod
-    mult: Multiplication  # TODO: Use this
-    sqr: Squaring  # TODO: Use this
-    red: Reduction  # TODO: Use this
-    model: CurveModel
-    coords: CoordinateModel
-    formulas: List[Formula]
-    scalarmult: ScalarMultiplier
-
-MULTIPLIERS = [
-    {
-        "name": ("rtl", "RTLMultiplier"),
-        "class": LTRMultiplier
-    },
-    {
-        "name": ("rtl", "RTLMultiplier"),
-        "class": RTLMultiplier
-    },
-    {
-        "name": ("coron", "CoronMultiplier"),
-        "class": CoronMultiplier
-    },
-    {
-        "name":("ldr", "LadderMultiplier"),
-        "class": LadderMultiplier
-    },
-    {
-        "name": ("simple-ldr", "SimpleLadderMultiplier"),
-        "class": SimpleLadderMultiplier
-    },
-    {
-        "name": ("diff-ldr", "DifferentialLadderMultiplier"),
-        "class": DifferentialLadderMultiplier
-    },
-    {
-        "name": ("naf", "bnaf", "BinaryNAFMultiplier"),
-        "class": BinaryNAFMultiplier
-    },
-    {
-        "name": ("wnaf", "WindowNAFMultiplier"),
-        "class": WindowNAFMultiplier
-    }
-]
 
 
 def render_defs(model: CurveModel, coords: CoordinateModel) -> str:
@@ -185,7 +72,7 @@ def transform_ops(ops: List[CodeOp], parameters: List[str], outputs: Set[str],
             return renames.get(name, name)
         return name
 
-    allocations = []
+    allocations: List[str] = []
     initializations = {}
     const_mapping = {}
     operations = []
@@ -302,9 +189,10 @@ def render_scalarmult_impl(scalarmult: ScalarMultiplier) -> str:
                                              BinaryNAFMultiplier=BinaryNAFMultiplier)
 
 
-def render_main(model: CurveModel, coords: CoordinateModel) -> str:
+def render_main(model: CurveModel, coords: CoordinateModel, keygen: bool, ecdh: bool, ecdsa: bool) -> str:
     return env.get_template("main.c").render(curve_variables=coords.variables,
-                                             curve_parameters=model.parameter_names)
+                                             curve_parameters=model.parameter_names,
+                                             keygen=keygen, ecdh=ecdh, ecdsa=ecdsa)
 
 
 def render_makefile(platform: Platform, hash_type: HashType, mod_rand: RandomMod) -> str:
@@ -328,7 +216,7 @@ def render(config: Configuration) -> Tuple[str, str, str]:
     os.mkdir(gen_dir)
     save_render(temp, "Makefile",
                 render_makefile(config.platform, config.hash_type, config.mod_rand))
-    save_render(temp, "main.c", render_main(config.model, config.coords))
+    save_render(temp, "main.c", render_main(config.model, config.coords, config.keygen, config.ecdh, config.ecdsa))
     save_render(gen_dir, "defs.h", render_defs(config.model, config.coords))
     point_render = render_coords_impl(config.coords)
     for formula in config.formulas:
@@ -337,7 +225,8 @@ def render(config: Configuration) -> Tuple[str, str, str]:
     save_render(gen_dir, "point.c", point_render)
     save_render(gen_dir, "curve.c", render_curve_impl(config.model))
     save_render(gen_dir, "mult.c", render_scalarmult_impl(config.scalarmult))
-    return temp, "pyecsca-codegen-{}.elf".format(str(config.platform)), "pyecsca-codegen-{}.hex".format(str(config.platform))
+    return temp, "pyecsca-codegen-{}.elf".format(
+            str(config.platform)), "pyecsca-codegen-{}.hex".format(str(config.platform))
 
 
 @public
@@ -439,23 +328,21 @@ def get_multiplier(ctx: click.Context, param, value: Optional[str]) -> Optional[
     return mult
 
 
-def wrap_enum(enum_class: Type[EnumDefine]):
-    def callback(ctx, param, value):
-        try:
-            res = getattr(enum_class, value)
-            return res
-        except Exception:
-            raise click.BadParameter(
-                    "Cannot create {} enum from {}.".format(enum_class.__name__, value))
-
-    return callback
-
+def get_ecdsa(ctx: click.Context, param, value: bool) -> bool:
+    if not value:
+        return False
+    formulas = ctx.meta["formulas"]
+    if not any(isinstance(formula, AdditionFormula) for formula in formulas):
+        raise click.BadParameter("ECDSA needs an addition formula. None was supplied.")
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option()
 @public
 def main():
+    """
+    A tool for building, querying and flashing ECC implementations on devices.
+    """
     pass
 
 
@@ -484,6 +371,10 @@ def main():
               type=click.Choice(Reduction.names()),
               callback=wrap_enum(Reduction),
               help="Modular reduction algorithm to use.")
+@click.option("--keygen/--no-keygen", help="Whether to disable keygen.", is_flag=True, default=True)
+@click.option("--ecdh/--no-ecdh", help="Whether to disable ECDH.", is_flag=True, default=True)
+@click.option("--ecdsa/--no-ecdsa", help="Whether to disable ECDSA.", is_flag=True, default=True,
+              callback=get_ecdsa)
 @click.option("--strip", help="Whether to strip the binary or not.", is_flag=True)
 @click.option("--remove/--no-remove", help="Whether to remove the dir.", is_flag=True, default=True)
 @click.option("-v", "--verbose", count=True)
@@ -498,8 +389,8 @@ def main():
                 callback=get_multiplier)
 @click.argument("outdir")
 @public
-def build_impl(platform, hash, rand, mul, sqr, red, strip, remove, verbose, model, coords, formulas, scalarmult,
-          outdir):
+def build_impl(platform, hash, rand, mul, sqr, red, keygen, ecdh, ecdsa, strip, remove,
+               verbose, model, coords, formulas, scalarmult, outdir):
     """This command builds an ECC implementation.
 
     \b
@@ -510,9 +401,9 @@ def build_impl(platform, hash, rand, mul, sqr, red, strip, remove, verbose, mode
     OUTDIR: The output directory for files with the built impl.
     """
 
-    config = Configuration(platform, hash, rand, mul, sqr, red, model, coords, formulas, scalarmult)
+    config = Configuration(platform, hash, rand, mul, sqr, red, model, coords, formulas, scalarmult,
+                           keygen, ecdh, ecdsa)
     dir, elf_file, hex_file = render(config)
-
 
     res = subprocess.run(["make"], cwd=dir, capture_output=True)
     if verbose >= 1:
@@ -540,7 +431,7 @@ def build_impl(platform, hash, rand, mul, sqr, red, strip, remove, verbose, mode
                 callback=get_formula)
 @public
 def list_impl(model: Optional[CurveModel], coords: Optional[CoordinateModel],
-         formulas: Optional[Tuple[Formula]]):
+              formulas: Optional[Tuple[Formula]]):
     """This command lists possible choices for an ECC implementation.
     If no arguments are provided the argument lists other implementation options,
     such as modular reduction algorithms, build platforms and so on.
@@ -575,14 +466,24 @@ def list_impl(model: Optional[CurveModel], coords: Optional[CoordinateModel],
                     "{}: {}, [{}]".format(coord.name, coord.full_name, ",".join(coord.variables)))
         return
     if not model:
-        click.echo(click.wrap_text("Platform:\n\t" + ", ".join(Platform.names()),subsequent_indent="\t"))
-        click.echo(click.wrap_text("Hash type:\n\t" + ", ".join(HashType.names()),subsequent_indent="\t"))
-        click.echo(click.wrap_text("Modular Random:\n\t" + ", ".join(RandomMod.names()),subsequent_indent="\t"))
-        click.echo(click.wrap_text("Multiplication:\n\t" + ", ".join(Multiplication.names()),subsequent_indent="\t"))
-        click.echo(click.wrap_text("Squaring:\n\t" + ", ".join(Squaring.names()),subsequent_indent="\t"))
-        click.echo(click.wrap_text("Modular Reduction:\n\t" + ", ".join(Reduction.names()),subsequent_indent="\t"))
-        click.echo(click.wrap_text("Scalar multplier:\n\t" + ", ".join(map(lambda m: m["name"][-1], MULTIPLIERS)),
+        click.echo(
+                click.wrap_text("Platform:\n\t" + ", ".join(Platform.names()),
+                                subsequent_indent="\t"))
+        click.echo(
+                click.wrap_text("Hash type:\n\t" + ", ".join(HashType.names()),
+                                subsequent_indent="\t"))
+        click.echo(click.wrap_text("Modular Random:\n\t" + ", ".join(RandomMod.names()),
                                    subsequent_indent="\t"))
+        click.echo(click.wrap_text("Multiplication:\n\t" + ", ".join(Multiplication.names()),
+                                   subsequent_indent="\t"))
+        click.echo(
+                click.wrap_text("Squaring:\n\t" + ", ".join(Squaring.names()),
+                                subsequent_indent="\t"))
+        click.echo(click.wrap_text("Modular Reduction:\n\t" + ", ".join(Reduction.names()),
+                                   subsequent_indent="\t"))
+        click.echo(click.wrap_text(
+                "Scalar multplier:\n\t" + ", ".join(map(lambda m: m["name"][-1], MULTIPLIERS)),
+                subsequent_indent="\t"))
 
 
 @main.command()
@@ -592,7 +493,7 @@ def list_impl(model: Optional[CurveModel], coords: Optional[CoordinateModel],
               help="The platform to flash.")
 @click.argument("dir")
 @public
-def flash(platform, dir):
+def flash(platform, dir):  # pragma: no cover
     """This command flashes a chip through the ChipWhisperer framework with the built implementation.
 
     \b
@@ -602,14 +503,16 @@ def flash(platform, dir):
         import chipwhisperer as cw
     except ImportError:
         click.secho("ChipWhisperer not installed, flashing requires it.", fg="red", err=True)
-        return
+        raise click.Abort
     if platform in (Platform.STM32F0, Platform.STM32F3):
         prog = cw.programmers.STM32FProgrammer
     elif platform == Platform.XMEGA:
         prog = cw.programmers.XMEGAProgrammer
     else:
-        click.secho("Flashing the HOST is not required, just run the ELF and communicate with it via the standard IO.", fg="red", err=True)
-        return
+        click.secho(
+                "Flashing the HOST is not required, just run the ELF and communicate with it via the standard IO.",
+                fg="red", err=True)
+        raise click.Abort
     fw_path = path.join(dir, "pyecsca-codegen-{}.hex".format(platform))
     scope = cw.scope()
     scope.default_setup()

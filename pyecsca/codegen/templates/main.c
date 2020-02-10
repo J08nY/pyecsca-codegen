@@ -352,13 +352,19 @@ int main(void) {
     simpleserial_init();
     simpleserial_addcmd('i', MAX_SS_LEN, cmd_init_prng);
     simpleserial_addcmd('c', MAX_SS_LEN, cmd_set_curve);
-    simpleserial_addcmd('g', 0, cmd_generate);
+    {%- if keygen %}
+    	simpleserial_addcmd('g', 0, cmd_generate);
+    {%- endif %}
     simpleserial_addcmd('s', MAX_SS_LEN, cmd_set_privkey);
     simpleserial_addcmd('w', MAX_SS_LEN, cmd_set_pubkey);
     simpleserial_addcmd('m', MAX_SS_LEN, cmd_scalar_mult);
-    simpleserial_addcmd('e', MAX_SS_LEN, cmd_ecdh);
-    simpleserial_addcmd('a', MAX_SS_LEN, cmd_ecdsa_sign);
-    simpleserial_addcmd('v', MAX_SS_LEN, cmd_ecdsa_verify);
+    {%- if ecdh %}
+    	simpleserial_addcmd('e', MAX_SS_LEN, cmd_ecdh);
+    {%- endif %}
+    {%- if ecdsa %}
+    	simpleserial_addcmd('a', MAX_SS_LEN, cmd_ecdsa_sign);
+    	simpleserial_addcmd('v', MAX_SS_LEN, cmd_ecdsa_verify);
+    {%- endif %}
     while(simpleserial_get());
     return 0;
 }

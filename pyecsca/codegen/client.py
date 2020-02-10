@@ -1,15 +1,25 @@
 #!/usr/bin/env python3
 from binascii import hexlify
-from typing import Mapping, Union, Optional
+from typing import Mapping, Union, Optional, Any
+from os import path
 
 import click
-from pyecsca.ec.coordinates import AffineCoordinateModel
-from pyecsca.ec.curve import EllipticCurve
-from pyecsca.ec.group import AbelianGroup
+from pyecsca.ec.params import DomainParameters
 from pyecsca.ec.mod import Mod
-from pyecsca.ec.model import ShortWeierstrassModel
-from pyecsca.ec.mult import LTRMultiplier
 from pyecsca.ec.point import Point
+
+from .common import EnumDefine, wrap_enum
+
+try:
+    import chipwhisperer as cw
+except ImportError:
+    cw = None
+
+
+class Target(EnumDefine):
+    HOST = "HOST"
+    SIMPLESERIAL = "CWLITE_SIMPLESERIAL"
+    JCARD = "CWLITE_JCARD"
 
 
 def encode_scalar(val: Union[int, Mod]) -> bytes:
@@ -55,7 +65,7 @@ def cmd_init_prng(seed: bytes) -> str:
     return "i" + hexlify(seed).decode()
 
 
-def cmd_set_curve(group: AbelianGroup) -> str:
+def cmd_set_curve(group: DomainParameters) -> str:
     data = {
         "p": encode_scalar(group.curve.prime),
         "n": encode_scalar(group.order),
@@ -96,11 +106,49 @@ def cmd_ecdsa_verify(data: bytes, sig: bytes) -> str:
     return "v" + hexlify(encode_data(None, {"d": data, "s": sig})).decode()
 
 
-@click.command()
+def setup_scope(target_type: Target):
+    if target_type in (Target.SIMPLESERIAL, Target.JCARD):
+        scope = cw.scope()
+        scope.default_setup()
+        return scope
+    return None
+
+
+def connect(target_type: Target, scope, **kwargs) -> Any:
+    if target_type == Target.HOST:
+        return kwargs["binary"]
+    elif target_type == Target.SIMPLESERIAL:
+        return cw.target(scope, cw.targets.SimpleSerial)
+    elif target_type == Target.JCARD:
+        return None  # TODO: this
+
+
+def send_command(target_type: Target, target: Any, command: str) -> str:
+    if target_type == Target.SIMPLESERIAL:
+        target.write(command + "\n")
+        result = target.read()
+        target.simpleserial_wait_ack()
+        return result
+    return None  # TODO: this
+
+
+@click.group(context_settings={"help_option_names": ["-h", "--help"]})
+@click.option("--target", envvar="TARGET", required=True,
+              type=click.Choice(Target.names()),
+              callback=wrap_enum(Target),
+              help="The target to use.")
+@click.option("--binary", help="For HOST target only. The binary to run.")
 @click.version_option()
-def main():
-    import chipwhisperer
-    pass
+def main(target, binary):
+    """
+    A tool for communicating with built and flashed ECC implementations.
+    """
+    if target in (Target.SIMPLESERIAL, Target.JCARD) and cw is None:
+        click.secho("ChipWhisperer not installed, SIMPLESERIAL and JCARD targets require it.", fg="red", err=True)
+        raise click.Abort
+    if target == Target.HOST and (binary is None or not path.isfile(binary)):
+        click.secho("Binary is required if the target is the host.", fg="red", err=True)
+        raise click.Abort
     # model = ShortWeierstrassModel()
     # coords = model.coordinates["projective"]
     # p = 0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff
@@ -134,6 +182,21 @@ def main():
     # print(pt.equals(res))
     # print(ot.equals(res))
     # print(ot == res)
+
+
+@main.command("gen")
+def generate():
+    pass
+
+
+@main.command("ecdh")
+def ecdh():
+    pass
+
+
+@main.command("ecdsa")
+def ecdsa():
+    pass
 
 
 if __name__ == "__main__":

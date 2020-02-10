@@ -19,7 +19,9 @@ install:
   - pip install -e ".[test, typecheck]"
 
 script:
-  - nose2 -s test -C -v test_builder
+  - make -i typecheck
+  - make -i codestyle
+  - make test
 
 after_success:
   - codecov
