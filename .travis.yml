@@ -1,8 +1,13 @@
+os: linux
 language: python
 dist: xenial
-python:
-  - "3.7"
-  - "3.8"
+python: "3.8"
+
+addons:
+  apt:
+    packages:
+      - swig
+      - gcc
 
 install:
   - pip install codecov
