@@ -10,5 +10,6 @@
 #define init_uart init_uart0
 #define putch output_ch_0
 #define getch input_ch_0
+#define flush flush_ch_0
 
 #endif //HOST_HAL_H_

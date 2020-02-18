@@ -24,6 +24,7 @@
 void init_uart(void);
 void putch(char c);
 char getch(void);
+#define flush()
 
 void trigger_setup(void);
 void trigger_low(void);

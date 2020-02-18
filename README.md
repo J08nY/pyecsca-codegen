@@ -10,7 +10,7 @@ Codegen package. See the [main repo](https://github.com/J08nY/pyecsca) for more 
 
     MIT License
 
-    Copyright (c) 2018-2019
+    Copyright (c) 2018-2020 Jan Jancar
     
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal

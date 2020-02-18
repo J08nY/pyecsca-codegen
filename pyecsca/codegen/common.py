@@ -1,28 +1,15 @@
 from dataclasses import dataclass
-from enum import Enum
-from typing import List, Type
-import click
+from typing import Type, Optional
 
+import click
 from public import public
+from pyecsca.ec.configuration import EnumDefine, Configuration
 from pyecsca.ec.coordinates import CoordinateModel
-from pyecsca.ec.formula import Formula
-from pyecsca.ec.model import CurveModel
-from pyecsca.ec.mult import (ScalarMultiplier, LTRMultiplier, RTLMultiplier, CoronMultiplier,
+from pyecsca.ec.model import (CurveModel, ShortWeierstrassModel, MontgomeryModel, EdwardsModel,
+                              TwistedEdwardsModel)
+from pyecsca.ec.mult import (LTRMultiplier, RTLMultiplier, CoronMultiplier,
                              LadderMultiplier, SimpleLadderMultiplier, DifferentialLadderMultiplier,
                              WindowNAFMultiplier, BinaryNAFMultiplier)
-
-
-@public
-class EnumDefine(Enum):
-    def __str__(self):
-        return self.value
-
-    def __repr__(self):
-        return self.value
-
-    @classmethod
-    def names(cls):
-        return list(e.name for e in cls)
 
 
 @public
@@ -35,62 +22,9 @@ class Platform(EnumDefine):
 
 
 @public
-class Multiplication(EnumDefine):
-    """Base multiplication algorithm to use."""
-    TOOM_COOK = "MUL_TOOM_COOK"
-    KARATSUBA = "MUL_KARATSUBA"
-    COMBA = "MUL_COMBA"
-    BASE = "MUL_BASE"
-
-
-@public
-class Squaring(EnumDefine):
-    """Base squaring algorithm to use."""
-    TOOM_COOK = "SQR_TOOM_COOK"
-    KARATSUBA = "SQR_KARATSUBA"
-    COMBA = "SQR_COMBA"
-    BASE = "SQR_BASE"
-
-
-@public
-class Reduction(EnumDefine):
-    """Modular reduction method used."""
-    BARRETT = "RED_BARRETT"
-    MONTGOMERY = "RED_MONTGOMERY"
-    BASE = "RED_BASE"
-
-
-@public
-class HashType(EnumDefine):
-    """Hash algorithm used in ECDH and ECDSA."""
-    NONE = "HASH_NONE"
-    SHA1 = "HASH_SHA1"
-    SHA224 = "HASH_SHA224"
-    SHA256 = "HASH_SHA256"
-    SHA384 = "HASH_SHA384"
-    SHA512 = "HASH_SHA512"
-
-
-@public
-class RandomMod(EnumDefine):
-    """Method of sampling a uniform integer modulo order."""
-    SAMPLE = "MOD_RAND_SAMPLE"
-    REDUCE = "MOD_RAND_REDUCE"
-
-
-@public
-@dataclass
-class Configuration(object):
+@dataclass(frozen=True)
+class DeviceConfiguration(Configuration):
     platform: Platform
-    hash_type: HashType
-    mod_rand: RandomMod
-    mult: Multiplication  # TODO: Use this
-    sqr: Squaring  # TODO: Use this
-    red: Reduction  # TODO: Use this
-    model: CurveModel
-    coords: CoordinateModel
-    formulas: List[Formula]
-    scalarmult: ScalarMultiplier
     keygen: bool
     ecdh: bool
     ecdsa: bool
@@ -143,3 +77,32 @@ def wrap_enum(enum_class: Type[EnumDefine]):
                     "Cannot create {} enum from {}.".format(enum_class.__name__, value))
 
     return callback
+
+
+def get_model(ctx: click.Context, param, value: str) -> CurveModel:
+    if value is None:
+        return None
+    classes = {
+        "shortw": ShortWeierstrassModel,
+        "montgom": MontgomeryModel,
+        "edwards": EdwardsModel,
+        "twisted": TwistedEdwardsModel
+    }
+    model = classes[value]()
+    ctx.ensure_object(dict)
+    ctx.obj["model"] = model
+    return model
+
+
+def get_coords(ctx: click.Context, param, value: Optional[str]) -> Optional[CoordinateModel]:
+    if value is None:
+        return None
+    ctx.ensure_object(dict)
+    model = ctx.obj["model"]
+    if value not in model.coordinates:
+        raise click.BadParameter(
+                "Coordinate model '{}' is not a model in '{}'.".format(value,
+                                                                       model.__class__.__name__))
+    coords = model.coordinates[value]
+    ctx.obj["coords"] = coords
+    return coords

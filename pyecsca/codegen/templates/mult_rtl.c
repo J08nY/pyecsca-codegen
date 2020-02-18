@@ -13,7 +13,7 @@ void scalar_mult(bn_t *scalar, point_t *point, curve_t *curve, point_t *out) {
 	bn_copy(scalar, &copy);
 
     while (!bn_is_0(&copy)) {
-        if (bn_get_bit(&copy, i) == 1) {
+        if (bn_get_bit(&copy, 0) == 1) {
             point_add(q, r, curve, r);
         } else {
         	{%- if scalarmult.always %}

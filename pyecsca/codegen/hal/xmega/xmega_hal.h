@@ -30,6 +30,7 @@
 #define init_uart init_uart0
 #define putch output_ch_0
 #define getch input_ch_0
+#define flush()
 
 #if PLATFORM == CW303
 #define led_error(a) if (a) {PORTA.OUTCLR = PIN6_bm;} else {PORTA.OUTSET = PIN6_bm;}

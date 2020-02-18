@@ -63,11 +63,26 @@ static void parse_set_curve(const char *path, const uint8_t *data, size_t len, v
 		return;
 	}
 	{%- endfor %}
-	{%- for variable in curve_variables %}
-	if (strcmp(path, "g{{ variable }}") == 0) {
-		bn_from_bin(data, len, &curve->generator->{{ variable }});
+
+	fat_t *affine = (fat_t *) arg;
+	if (strcmp(path, "gx") == 0) {
+		affine[0].len = len;
+		affine[0].value = malloc(len);
+		memcpy(affine[0].value, data, len);
 		return;
 	}
+	if (strcmp(path, "gy") == 0) {
+		affine[1].len = len;
+		affine[1].value = malloc(len);
+		memcpy(affine[1].value, data, len);
+		return;
+	}
+
+	if (strcmp(path, "in") == 0) {
+		curve->neutral->infinity = *data;
+		return;
+	}
+	{%- for variable in curve_variables %}
 	if (strcmp(path, "i{{ variable }}") == 0) {
 		bn_from_bin(data, len, &curve->neutral->{{ variable }});
 		return;
@@ -76,13 +91,25 @@ static void parse_set_curve(const char *path, const uint8_t *data, size_t len, v
 }
 
 static uint8_t cmd_set_curve(uint8_t *data, uint16_t len) {
-	// need p, [params], n, h, g[variables], i[variables]
-	parse_data(data, len, "", parse_set_curve, NULL);
+	// need p, [params], n, h, g[xy], i[variables]
+	fat_t affine[2] = {fat_empty, fat_empty};
+	parse_data(data, len, "", parse_set_curve, (void *) affine);
+	bn_t x; bn_init(&x);
+	bn_t y; bn_init(&y);
+	bn_from_bin(affine[0].value, affine[0].len, &x);
+	bn_from_bin(affine[1].value, affine[1].len, &y);
+
+	point_from_affine(&x, &y, curve, curve->generator);
+	bn_clear(&x);
+	bn_clear(&y);
+	free(affine[0].value);
+	free(affine[1].value);
 	return 0;
 }
 
 static uint8_t cmd_generate(uint8_t *data, uint16_t len) {
 	// generate a keypair, export privkey and affine pubkey
+	trigger_high();
 	bn_init(&privkey);
 	bn_rand_mod(&privkey, &curve->n);
 	size_t priv_size = bn_to_bin_size(&privkey);
@@ -92,12 +119,21 @@ static uint8_t cmd_generate(uint8_t *data, uint16_t len) {
 
 	uint8_t priv[priv_size];
 	bn_to_bin(&privkey, priv);
+
+	bn_t x; bn_init(&x);
+	bn_t y; bn_init(&y);
+
+	point_to_affine(pubkey, curve, &x, &y);
+
+	uint8_t pub[coord_size * 2];
+	bn_to_binpad(&x, pub, coord_size);
+	bn_to_binpad(&y, pub + coord_size, coord_size);
+	bn_clear(&x);
+	bn_clear(&y);
+	trigger_low();
+
 	simpleserial_put('s', priv_size, priv);
-	uint8_t pub[coord_size * {{ curve_variables | length }}];
-	{%- for variable in curve_variables %}
-	bn_to_binpad(&pubkey->{{ variable }}, pub + coord_size * {{ loop.index0 }}, coord_size);
-	{%- endfor %}
-	simpleserial_put('w', coord_size * {{ curve_variables | length }}, pub);
+	simpleserial_put('w', coord_size * 2, pub);
 	return 0;
 }
 
@@ -115,17 +151,35 @@ static uint8_t cmd_set_privkey(uint8_t *data, uint16_t len) {
 }
 
 static void parse_set_pubkey(const char *path, const uint8_t *data, size_t len, void *arg) {
-	{%- for variable in curve_variables %}
-	if (strcmp(path, "w{{ variable }}") == 0) {
-		bn_from_bin(data, len, &pubkey->{{ variable }});
+	fat_t *affine = (fat_t *) arg;
+	if (strcmp(path, "wx") == 0) {
+		affine[0].len = len;
+		affine[0].value = malloc(len);
+		memcpy(affine[0].value, data, len);
 		return;
 	}
-	{%- endfor %}
+	if (strcmp(path, "wy") == 0) {
+		affine[1].len = len;
+		affine[1].value = malloc(len);
+		memcpy(affine[1].value, data, len);
+		return;
+	}
 }
 
 static uint8_t cmd_set_pubkey(uint8_t *data, uint16_t len) {
 	// set the current pubkey
-	parse_data(data, len, "", parse_set_pubkey, NULL);
+	fat_t affine[2] = {fat_empty, fat_empty};
+	parse_data(data, len, "", parse_set_pubkey, (void *) affine);
+	bn_t x; bn_init(&x);
+	bn_t y; bn_init(&y);
+	bn_from_bin(affine[0].value, affine[0].len, &x);
+	bn_from_bin(affine[1].value, affine[1].len, &y);
+
+	point_from_affine(&x, &y, curve, pubkey);
+	bn_clear(&x);
+	bn_clear(&y);
+	free(affine[0].value);
+	free(affine[1].value);
 	return 0;
 }
 
@@ -139,6 +193,7 @@ static void parse_scalar_mult(const char *path, const uint8_t *data, size_t len,
 
 static uint8_t cmd_scalar_mult(uint8_t *data, uint16_t len) {
 	// perform base point scalar mult with supplied scalar.
+	trigger_high();
 	bn_t scalar; bn_init(&scalar);
 	parse_data(data, len, "", parse_scalar_mult, (void *) &scalar);
 	size_t coord_size = bn_to_bin_size(&curve->p);
@@ -151,26 +206,46 @@ static uint8_t cmd_scalar_mult(uint8_t *data, uint16_t len) {
 	{%- for variable in curve_variables %}
 	bn_to_binpad(&result->{{ variable }}, res + coord_size * {{ loop.index0 }}, coord_size);
 	{%- endfor %}
-	simpleserial_put('w', coord_size * {{ curve_variables | length }}, res);
 	bn_clear(&scalar);
 	point_free(result);
+	trigger_low();
+
+	simpleserial_put('w', coord_size * {{ curve_variables | length }}, res);
 	return 0;
 }
 
 static void parse_ecdh(const char *path, const uint8_t *data, size_t len, void *arg) {
-	point_t *other = (point_t *) arg;
-	{%- for variable in curve_variables %}
-	if (strcmp(path, "w{{ variable }}") == 0) {
-		bn_from_bin(data, len, &other->{{ variable }});
+	fat_t *affine = (fat_t *) arg;
+	if (strcmp(path, "wx") == 0) {
+		affine[0].len = len;
+		affine[0].value = malloc(len);
+		memcpy(affine[0].value, data, len);
 		return;
 	}
-	{%- endfor %}
+	if (strcmp(path, "wy") == 0) {
+		affine[1].len = len;
+		affine[1].value = malloc(len);
+		memcpy(affine[1].value, data, len);
+		return;
+	}
 }
 
 static uint8_t cmd_ecdh(uint8_t *data, uint16_t len) {
 	//perform ECDH with provided point (and current privkey), output shared secret
+	trigger_high();
 	point_t *other = point_new();
-	parse_data(data, len, "", parse_ecdh, (void *) other);
+	fat_t affine[2] = {fat_empty, fat_empty};
+	parse_data(data, len, "", parse_ecdh, (void *) affine);
+	bn_t ox; bn_init(&ox);
+	bn_t oy; bn_init(&oy);
+	bn_from_bin(affine[0].value, affine[0].len, &ox);
+	bn_from_bin(affine[1].value, affine[1].len, &oy);
+
+	point_from_affine(&ox, &oy, curve, other);
+	bn_clear(&ox);
+	bn_clear(&oy);
+	free(affine[0].value);
+	free(affine[1].value);
 
 	point_t *result = point_new();
 
@@ -192,17 +267,18 @@ static uint8_t cmd_ecdh(uint8_t *data, uint16_t len) {
 	uint8_t h_out[h_size];
 	hash_final(h_ctx, size, x_raw, h_out);
 	hash_free_ctx(h_ctx);
-
-	simpleserial_put('r', h_size, h_out);
 	bn_clear(&x);
 	bn_clear(&y);
 	point_free(result);
 	point_free(other);
+	trigger_low();
+
+	simpleserial_put('r', h_size, h_out);
 	return 0;
 }
 
 static void parse_ecdsa_msg(const char *path, const uint8_t *data, size_t len, void *arg) {
-	fat_t *dest = (fat_t *)arg;
+	fat_t *dest = (fat_t *) arg;
 	if (strcmp(path, "d") == 0) {
 		dest->len = len;
 		dest->value = malloc(len);
@@ -339,6 +415,14 @@ static uint8_t cmd_ecdsa_verify(uint8_t *data, uint16_t len) {
 	return 0;
 }
 
+static uint8_t cmd_debug(uint8_t *data, uint16_t len) {
+	const char *debug_string = "{{ ','.join((model.shortname, coords.name))}}";
+	size_t debug_len = strlen(debug_string);
+
+	simpleserial_put('d', debug_len, debug_string);
+	return 0;
+}
+
 int main(void) {
     platform_init();
     prng_init();
@@ -365,6 +449,7 @@ int main(void) {
     	simpleserial_addcmd('a', MAX_SS_LEN, cmd_ecdsa_sign);
     	simpleserial_addcmd('v', MAX_SS_LEN, cmd_ecdsa_verify);
     {%- endif %}
+    simpleserial_addcmd('d', MAX_SS_LEN, cmd_debug);
     while(simpleserial_get());
     return 0;
 }

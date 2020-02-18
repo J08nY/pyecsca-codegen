@@ -1,12 +1,14 @@
 #ifndef DEFS_H_
 #define DEFS_H_
 
+#include <stdlib.h>
 #include "bn.h"
 
 typedef struct {
 	{%- for variable in variables %}
 	bn_t {{ variable }};
 	{%- endfor %}
+	bool infinity;
 } point_t;
 
 typedef struct {

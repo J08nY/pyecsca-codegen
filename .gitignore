@@ -2,5 +2,5 @@
 /pyecsca/codegen/tommath/
 .coverage
 htmlcov/
-
+/build/
 __pycache__

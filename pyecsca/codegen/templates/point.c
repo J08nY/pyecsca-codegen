@@ -30,6 +30,13 @@ void point_free(point_t *point) {
 }
 
 bool point_equals(const point_t *one, const point_t *other) {
+	if (one->infinity && !other->infinity || other->infinity && !one->infinity) {
+		return false;
+	}
+	if (one->infinity && other->infinity) {
+		return true;
+	}
+
 	{%- for variable in variables %}
 	if (!bn_eq(&one->{{ variable }}, &other->{{ variable }})) {
 		return false;

@@ -151,4 +151,5 @@ void simpleserial_put(char c, int size, uint8_t* output)
 
 	// Write trailing '\n'
 	putch('\n');
+	flush();
 }

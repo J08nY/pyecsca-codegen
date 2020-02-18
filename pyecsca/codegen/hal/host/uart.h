@@ -10,4 +10,6 @@ int input_ch_0(void);
 
 void output_ch_0(char data);
 
+void flush_ch_0(void);
+
 #endif //UART_H_
