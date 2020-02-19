@@ -7,8 +7,7 @@ void scalar_mult(bn_t *scalar, point_t *point, curve_t *curve, point_t *out) {
 		point_t *r = point_copy(curve->neutral);
 		int nbits = bn_bit_length(&curve->n) - 1;
 	{%- else %}
-		point_t *q = point_new();
-		point_dbl(point, curve, q);
+		point_t *q = point_copy(point);
 		point_t *r = point_copy(point);
 		int nbits = bn_bit_length(scalar) - 2;
 	{%- endif %}

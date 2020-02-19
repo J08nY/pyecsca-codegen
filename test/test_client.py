@@ -1,3 +1,4 @@
+from os.path import join
 from unittest import TestCase
 
 from click.testing import CliRunner
@@ -6,7 +7,8 @@ from pyecsca.ec.mod import Mod
 
 from pyecsca.codegen.builder import build_impl
 from pyecsca.codegen.client import (encode_data, decode_data, encode_scalar, cmd_init_prng,
-                                    cmd_set_curve, cmd_set_pubkey, cmd_set_privkey, cmd_scalar_mult,
+                                    cmd_set_params, cmd_set_pubkey, cmd_set_privkey,
+                                    cmd_scalar_mult,
                                     cmd_ecdh, cmd_ecdsa_sign, cmd_ecdsa_verify, cmd_generate,
                                     cmd_debug, main)
 
@@ -35,7 +37,7 @@ class CommandTest(TestCase):
         cmd_init_prng(bytes([0xca, 0xfe, 0xba, 0xbe]))
 
     def test_set_curve(self):
-        cmd_set_curve(self.curve)
+        cmd_set_params(self.curve)
 
     def test_generate(self):
         cmd_generate()
@@ -66,11 +68,12 @@ class ClientTests(TestCase):
 
     def test_generate(self):
         runner = CliRunner()
-        with runner.isolated_filesystem():
+        with runner.isolated_filesystem() as tmpdir:
             runner.invoke(build_impl,
                           ["--platform", "HOST", "-v", "shortw", "projective",
                            "add-1998-cmo", "dbl-1998-cmo", "z", "ltr(complete=False)", "."])
             result = runner.invoke(main,
-                                   ["--platform", "HOST", "--binary", "./pyecsca-codegen-HOST.elf",
-                                    "gen", "shortw", "projective", "secg/secp128r1"])
+                                   ["--platform", "HOST", "--binary",
+                                    join(tmpdir, "pyecsca-codegen-HOST.elf"),
+                                    "shortw", "projective", "gen", "secg/secp128r1"])
             self.assertEqual(result.exit_code, 0)

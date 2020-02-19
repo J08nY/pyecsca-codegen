@@ -1,4 +1,4 @@
-TESTS = test_builder test_client
+TESTS = test_builder test_client test_render test_impl
 
 test:
 	nose2 -s test -A !slow -C -v ${TESTS}

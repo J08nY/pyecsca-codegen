@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 import subprocess
-from binascii import hexlify
+from binascii import hexlify, unhexlify
 from os import path
 from subprocess import Popen
-from typing import Mapping, Union, Optional
+from typing import Mapping, Union, Optional, Tuple
 
 import click
+from public import public
+from pyecsca.ec.coordinates import CoordinateModel, AffineCoordinateModel
 from pyecsca.ec.curves import get_params
 from pyecsca.ec.mod import Mod
+from pyecsca.ec.model import CurveModel
 from pyecsca.ec.params import DomainParameters
 from pyecsca.ec.point import Point, InfinityPoint
 from pyecsca.sca import SerialTarget
@@ -20,6 +23,7 @@ def encode_scalar(val: Union[int, Mod]) -> bytes:
         return val.to_bytes((val.bit_length() + 7) // 8, "big")
     elif isinstance(val, Mod):
         return encode_scalar(int(val))
+    return bytes()
 
 
 def encode_point(point: Point) -> Mapping:
@@ -30,6 +34,8 @@ def encode_point(point: Point) -> Mapping:
 
 def encode_data(name: Optional[str], structure: Union[Mapping, bytes]) -> bytes:
     if isinstance(structure, bytes):
+        if name is None:
+            raise ValueError
         header = bytes([ord(name)]) + bytes([len(structure)])
         return header + structure
     data = bytes()
@@ -56,11 +62,13 @@ def decode_data(data: bytes) -> Mapping:
     return result
 
 
+@public
 def cmd_init_prng(seed: bytes) -> str:
     return "i" + hexlify(seed).decode()
 
 
-def cmd_set_curve(group: DomainParameters) -> str:
+@public
+def cmd_set_params(group: DomainParameters) -> str:
     data = {
         "p": encode_scalar(group.curve.prime),
         "n": encode_scalar(group.order),
@@ -73,43 +81,137 @@ def cmd_set_curve(group: DomainParameters) -> str:
     return "c" + hexlify(encode_data(None, data)).decode()
 
 
+@public
 def cmd_generate() -> str:
     return "g"
 
 
+@public
 def cmd_set_privkey(privkey: int) -> str:
     return "s" + hexlify(encode_data(None, {"s": encode_scalar(privkey)})).decode()
 
 
+@public
 def cmd_set_pubkey(pubkey: Point) -> str:
     return "w" + hexlify(encode_data(None, {"w": encode_point(pubkey.to_affine())})).decode()
 
 
+@public
 def cmd_scalar_mult(scalar: int) -> str:
     return "m" + hexlify(encode_data(None, {"s": encode_scalar(scalar)})).decode()
 
 
+@public
 def cmd_ecdh(pubkey: Point) -> str:
     return "e" + hexlify(encode_data(None, {"w": encode_point(pubkey.to_affine())})).decode()
 
 
+@public
 def cmd_ecdsa_sign(data: bytes) -> str:
     return "a" + hexlify(encode_data(None, {"d": data})).decode()
 
 
+@public
 def cmd_ecdsa_verify(data: bytes, sig: bytes) -> str:
     return "v" + hexlify(encode_data(None, {"d": data, "s": sig})).decode()
 
 
+@public
 def cmd_debug() -> str:
     return "d"
 
 
-class BinaryTarget(SerialTarget):
+class ImplTarget(SerialTarget):
+    model: CurveModel
+    coords: CoordinateModel
+    seed: Optional[bytes]
+    params: Optional[DomainParameters]
+    privkey: Optional[int]
+    pubkey: Optional[Point]
+
+    def __init__(self, model: CurveModel, coords: CoordinateModel):
+        self.model = model
+        self.coords = coords
+        self.seed = None
+        self.params = None
+        self.privkey = None
+        self.pubkey = None
+
+    def init_prng(self, seed: bytes) -> None:
+        self.write(cmd_init_prng(seed).encode())
+        self.read(1)
+        self.seed = seed
+
+    def set_params(self, params: DomainParameters) -> None:
+        self.write(cmd_set_params(params).encode())
+        self.read(1)
+        self.params = params
+
+    def generate(self) -> Tuple[int, Point]:
+        self.write(cmd_generate().encode())
+        priv = self.read(1).decode()[1:-1]
+        pub = self.read(1).decode()[1:-1]
+        self.read(1)
+        self.privkey = int(priv, 16)
+        pub_len = len(pub)
+        x = int(pub[:pub_len // 2], 16)
+        y = int(pub[pub_len // 2:], 16)
+        self.pubkey = Point(AffineCoordinateModel(self.model), x=Mod(x, self.params.curve.prime),
+                            y=Mod(y, self.params.curve.prime))
+        return self.privkey, self.pubkey
+
+    def set_privkey(self, privkey: int) -> None:
+        self.write(cmd_set_privkey(privkey).encode())
+        self.read(1)
+        self.privkey = privkey
+
+    def set_pubkey(self, pubkey: Point) -> None:
+        self.write(cmd_set_pubkey(pubkey).encode())
+        self.read(1)
+        self.pubkey = pubkey
+
+    def scalar_mult(self, scalar: int) -> Point:
+        self.write(cmd_scalar_mult(scalar).encode())
+        result = self.read(1)[1:-1]
+        plen = (self.params.curve.prime + 7) // 8
+        self.read(1)
+        params = {var: Mod(int(result[i * plen:(i + 1) * plen], 16), self.params.curve.prime) for
+                  i, var in enumerate(self.coords.variables)}
+        return Point(self.coords, **params)
+
+    def ecdh(self, other_pubkey: Point) -> bytes:
+        self.write(cmd_ecdh(other_pubkey).encode())
+        result = self.read(1)
+        self.read(1)
+        return unhexlify(result[1:-1])
+
+    def ecdsa_sign(self, data: bytes) -> bytes:
+        self.write(cmd_ecdsa_sign(data).encode())
+        signature = self.read(1)
+        self.read(1)
+        return unhexlify(signature[1:-1])
+
+    def ecdsa_verify(self, data: bytes, signature: bytes) -> bool:
+        self.write(cmd_ecdsa_verify(data, signature).encode())
+        result = self.read(1)
+        self.read(1)
+        return unhexlify(result[1:-1])[0] == 1
+
+    def debug(self) -> Tuple[str, str]:
+        self.write(cmd_debug().encode())
+        resp = self.read(1)
+        self.read(1)
+        model, coords = unhexlify(resp[1:-1]).decode().split(",")
+        return model, coords
+
+
+@public
+class BinaryTarget(ImplTarget):
     binary: str
     process: Optional[Popen]
 
-    def __init__(self, binary: str):
+    def __init__(self, binary: str, model: CurveModel, coords: CoordinateModel):
+        super().__init__(model, coords)
         self.binary = binary
 
     def connect(self):
@@ -117,15 +219,22 @@ class BinaryTarget(SerialTarget):
                              text=True, bufsize=1)
 
     def write(self, data: bytes):
+        if self.process is None:
+            raise ValueError
         self.process.stdin.write(data.decode() + "\n")
         self.process.stdin.flush()
 
     def read(self, timeout: int) -> bytes:
-        return self.process.stdout.readline()
+        if self.process is None:
+            raise ValueError
+        return self.process.stdout.readline().encode()
 
     def disconnect(self):
-        if self.process.poll() is not None:
-            self.process.terminate()
+        if self.process is None:
+            return
+        self.process.stdin.close()
+        self.process.stdout.close()
+        self.process.kill()
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -134,9 +243,15 @@ class BinaryTarget(SerialTarget):
               callback=wrap_enum(Platform),
               help="The target platform to use.")
 @click.option("--binary", help="For HOST target only. The binary to run.")
+@click.argument("model", required=True,
+                type=click.Choice(["shortw", "montgom", "edwards", "twisted"]),
+                callback=get_model)
+@click.argument("coords", required=True,
+                callback=get_coords)
 @click.version_option()
 @click.pass_context
-def main(ctx, platform, binary):
+@public
+def main(ctx, platform, binary, model, coords):
     """
     A tool for communicating with built and flashed ECC implementations.
     """
@@ -158,40 +273,7 @@ def main(ctx, platform, binary):
         if binary is None or not path.isfile(binary):
             click.secho("Binary is required if the target is the host.", fg="red", err=True)
             raise click.Abort
-        ctx.obj["target"] = BinaryTarget(binary)
-    # model = ShortWeierstrassModel()
-    # coords = model.coordinates["projective"]
-    # p = 0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff
-    # curve = EllipticCurve(model, coords,
-    #                       p,
-    #                       {"a": 0xffffffff00000001000000000000000000000000fffffffffffffffffffffffc,
-    #                        "b": 0x5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b})
-    # affine_g = Point(AffineCoordinateModel(model),
-    #                  x=Mod(0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296, p),
-    #                  y=Mod(0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5, p))
-    # g = Point.from_affine(coords, affine_g)
-    # neutral = Point(coords, X=Mod(0, p), Y=Mod(1, p), Z=Mod(0, p))
-    # group = AbelianGroup(curve, g, neutral,
-    #                      0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551, 0x1)
-    #
-    # print(cmd_set_curve(group))
-    # mul = LTRMultiplier(coords.formulas["add-1998-cmo"], coords.formulas["dbl-1998-cmo"], coords.formulas["z"])
-    # mul.init(group, g)
-    # res = mul.multiply(0x2EF035DF6D0634C7422161D08BCC794B5312E042DDB32B0135A4DE6E6345A555)
-    # rx = Mod(0x77E3FF34C12571970845CBEB1BE0A79E3ECEE187510C2B8894BA800F8164C954, p)
-    # ry = Mod(0x408A6A05607F9ACA97BB9A34EA643B107AADE0C9BB5EDB930EADE3009666B9D1, p)
-    # rz = Mod(0xC66ECD687C335D63A7030434CA70351191BAFF1C206332EFEA39FA3003E91646, p)
-    #
-    # ox = Mod(0x3B1E7733E3250C97EB9D00AE0394F0768902DD337FEAAF7C4F6B9588462920DD, p)
-    # oy = Mod(0xBA718497596C964E77F9666506505B1E730EE69D254E85AD44727DFFB2C7063E, p)
-    # oz = Mod(0x0000000000000000000000000000000000000000000000000000000000000001, p)
-    #
-    # pt = Point(coords, X=rx, Y=ry, Z=rz)
-    # ot = Point(coords, X=ox, Y=oy, Z=oz)
-    # print(ot, res)
-    # print(pt.equals(res))
-    # print(ot.equals(res))
-    # print(ot == res)
+        ctx.obj["target"] = BinaryTarget(binary, model, coords)
 
 
 def get_curve(ctx: click.Context, param, value: Optional[str]) -> DomainParameters:
@@ -204,37 +286,28 @@ def get_curve(ctx: click.Context, param, value: Optional[str]) -> DomainParamete
 
 
 @main.command("gen")
-@click.argument("model", required=True,
-                type=click.Choice(["shortw", "montgom", "edwards", "twisted"]),
-                callback=get_model)
-@click.argument("coords", required=True,
-                callback=get_coords)
 @click.argument("curve", required=True, callback=get_curve)
 @click.pass_context
-def generate(ctx: click.Context, model, coords, curve):
+@public
+def generate(ctx: click.Context, curve):
     ctx.ensure_object(dict)
-    set_curve = cmd_set_curve(curve)
-    generate = cmd_generate()
-    target: SerialTarget = ctx.obj["target"]
+    target: ImplTarget = ctx.obj["target"]
     target.connect()
-    click.echo(set_curve)
-    target.write(set_curve.encode())
-    click.echo(target.read(1))
-    click.echo(generate)
-    target.write(generate.encode())
-    click.echo(target.read(1))
-    click.echo(target.read(1))
+    target.set_params(curve)
+    click.echo(target.generate())
     target.disconnect()
 
 
 @main.command("ecdh")
 @click.pass_context
+@public
 def ecdh(ctx: click.Context):
     ctx.ensure_object(dict)
 
 
 @main.command("ecdsa")
 @click.pass_context
+@public
 def ecdsa(ctx: click.Context):
     ctx.ensure_object(dict)
 

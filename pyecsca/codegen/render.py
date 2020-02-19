@@ -26,8 +26,8 @@ env = Environment(
         loader=PackageLoader("pyecsca.codegen")
 )
 
-
 env.globals["isinstance"] = isinstance
+
 
 def render_op(op: OpType, result: str, left: str, right: str, mod: str) -> Optional[str]:
     if op == OpType.Add:
@@ -48,7 +48,9 @@ def render_op(op: OpType, result: str, left: str, right: str, mod: str) -> Optio
         print(op, result, left, right, mod)
         return None
 
+
 env.globals["render_op"] = render_op
+
 
 def render_defs(model: CurveModel, coords: CoordinateModel) -> str:
     return env.get_template("defs.h").render(params=model.parameter_names,
@@ -233,7 +235,7 @@ def render(config: DeviceConfiguration) -> Tuple[str, str, str]:
 
 @public
 def build(dir: str, elf_file: str, hex_file: str, outdir: str, strip: bool = False,
-          remove : bool = True) -> subprocess.CompletedProcess:
+          remove: bool = True) -> subprocess.CompletedProcess:
     """
 
     :param dir:
@@ -248,7 +250,8 @@ def build(dir: str, elf_file: str, hex_file: str, outdir: str, strip: bool = Fal
     if res.returncode != 0:
         raise ValueError("Build failed!")
     if strip:
-        subprocess.run(["strip", elf_file], cwd=dir)
+        s = subprocess.run(["strip", elf_file], cwd=dir)
+        s.returncode
     full_elf_path = path.join(dir, elf_file)
     full_hex_path = path.join(dir, hex_file)
     shutil.copy(full_elf_path, outdir)

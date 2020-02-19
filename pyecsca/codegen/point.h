@@ -13,9 +13,11 @@ void point_free(point_t *point);
 
 bool point_equals(const point_t *one, const point_t *other);
 
-void point_to_affine(point_t *point, curve_t *curve, bn_t *out_x, bn_t *out_y);
+bool point_equals_affine(const point_t *one, const point_t *other, const curve_t *curve);
 
-void point_from_affine(bn_t *x, bn_t *y, curve_t *curve, point_t *out);
+void point_to_affine(const point_t *point, const curve_t *curve, bn_t *out_x, bn_t *out_y);
+
+void point_from_affine(bn_t *x, bn_t *y, const curve_t *curve, point_t *out);
 
 void point_add(const point_t *one, const point_t *other, const curve_t *curve, point_t *out_one);
 

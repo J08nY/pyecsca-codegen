@@ -4,7 +4,7 @@ import shutil
 import subprocess
 from copy import copy
 from os import path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Type, MutableMapping
 
 import click
 from public import public
@@ -39,13 +39,13 @@ def get_multiplier(ctx: click.Context, param, value: Optional[str]) -> Optional[
     if value is None:
         return None
     res = re.match(
-            "(?P<name>[a-zA-Z\-]+)\((?P<args>([a-zA-Z_]+ *= *[a-zA-Z0-9]+, )*?([a-zA-Z_]+ *= *[a-zA-Z0-9]+)*)\)",
+            "(?P<name>[a-zA-Z\-]+)\((?P<args>([a-zA-Z_]+ *= *[a-zA-Z0-9]+, ?)*?([a-zA-Z_]+ *= *[a-zA-Z0-9]+)*)\)",
             value)
     if not res:
         raise click.BadParameter("Couldn't parse multiplier spec: {}.".format(value))
     name = res.group("name")
     args = res.group("args")
-    mult_class = None
+    mult_class: Type[ScalarMultiplier] = None
     for mult_def in MULTIPLIERS:
         if name in mult_def["name"]:
             mult_class = mult_def["class"]
@@ -80,6 +80,7 @@ def get_ecdsa(ctx: click.Context, param, value: bool) -> bool:
     formulas = ctx.obj["formulas"]
     if not any(isinstance(formula, AdditionFormula) for formula in formulas):
         raise click.BadParameter("ECDSA needs an addition formula. None was supplied.")
+    return value
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -108,7 +109,7 @@ def main():
 @click.option("--mul", envvar="MUL", default="BASE", show_default=True,
               type=click.Choice(Multiplication.names()),
               callback=wrap_enum(Multiplication),
-              help="Multiplier to use.")
+              help="Multiplication algorithm to use.")
 @click.option("--sqr", envvar="SQR", default="BASE", show_default=True,
               type=click.Choice(Squaring.names()),
               callback=wrap_enum(Squaring),
@@ -117,12 +118,12 @@ def main():
               type=click.Choice(Reduction.names()),
               callback=wrap_enum(Reduction),
               help="Modular reduction algorithm to use.")
-@click.option("--keygen/--no-keygen", help="Whether to disable keygen.", is_flag=True, default=True)
-@click.option("--ecdh/--no-ecdh", help="Whether to disable ECDH.", is_flag=True, default=True)
-@click.option("--ecdsa/--no-ecdsa", help="Whether to disable ECDSA.", is_flag=True, default=True,
-              callback=get_ecdsa)
+@click.option("--keygen/--no-keygen", help="Whether to enable keygen.", is_flag=True, default=True, show_default=True)
+@click.option("--ecdh/--no-ecdh", help="Whether to enable ECDH.", is_flag=True, default=True, show_default=True)
+@click.option("--ecdsa/--no-ecdsa", help="Whether to enable ECDSA.", is_flag=True, default=True,
+              callback=get_ecdsa, show_default=True)
 @click.option("--strip", help="Whether to strip the binary or not.", is_flag=True)
-@click.option("--remove/--no-remove", help="Whether to remove the dir.", is_flag=True, default=True)
+@click.option("--remove/--no-remove", help="Whether to remove the dir.", is_flag=True, default=True, show_default=True)
 @click.option("-v", "--verbose", count=True)
 @click.argument("model", required=True,
                 type=click.Choice(["shortw", "montgom", "edwards", "twisted"]),
@@ -143,7 +144,7 @@ def build_impl(platform, hash, rand, mul, sqr, red, keygen, ecdh, ecdsa, strip, 
     MODEL: The curve model to use.
     COORDS: The coordinate model to use.
     FORMULAS: The formulas to use.
-    MULT: The scalar multiplication algorithm to use.
+    SCALARMULT: The scalar multiplication algorithm to use.
     OUTDIR: The output directory for files with the built impl.
     """
 
@@ -196,7 +197,7 @@ def list_impl(model: Optional[CurveModel], coords: Optional[CoordinateModel],
         return
     if not formulas and coords:
         click.echo(coords)
-        types = {}
+        types: MutableMapping[Type, List] = {}
         for val in coords.formulas.values():
             category = types.setdefault(val.__class__, [])
             category.append(val)

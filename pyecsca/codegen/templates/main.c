@@ -56,7 +56,7 @@ static uint8_t cmd_init_prng(uint8_t *data, uint16_t len) {
     return 0;
 }
 
-static void parse_set_curve(const char *path, const uint8_t *data, size_t len, void *arg) {
+static void parse_set_params(const char *path, const uint8_t *data, size_t len, void *arg) {
 	{%- for param in curve_parameters + ["p", "n", "h"] %}
 	if (strcmp(path, "{{ param }}") == 0) {
 		bn_from_bin(data, len, &curve->{{ param }});
@@ -90,10 +90,10 @@ static void parse_set_curve(const char *path, const uint8_t *data, size_t len, v
 	{%- endfor %}
 }
 
-static uint8_t cmd_set_curve(uint8_t *data, uint16_t len) {
+static uint8_t cmd_set_params(uint8_t *data, uint16_t len) {
 	// need p, [params], n, h, g[xy], i[variables]
 	fat_t affine[2] = {fat_empty, fat_empty};
-	parse_data(data, len, "", parse_set_curve, (void *) affine);
+	parse_data(data, len, "", parse_set_params, (void *) affine);
 	bn_t x; bn_init(&x);
 	bn_t y; bn_init(&y);
 	bn_from_bin(affine[0].value, affine[0].len, &x);
@@ -416,10 +416,10 @@ static uint8_t cmd_ecdsa_verify(uint8_t *data, uint16_t len) {
 }
 
 static uint8_t cmd_debug(uint8_t *data, uint16_t len) {
-	const char *debug_string = "{{ ','.join((model.shortname, coords.name))}}";
+	char *debug_string = "{{ ','.join((model.shortname, coords.name))}}";
 	size_t debug_len = strlen(debug_string);
 
-	simpleserial_put('d', debug_len, debug_string);
+	simpleserial_put('d', debug_len, (uint8_t *) debug_string);
 	return 0;
 }
 
@@ -435,7 +435,7 @@ int main(void) {
 
     simpleserial_init();
     simpleserial_addcmd('i', MAX_SS_LEN, cmd_init_prng);
-    simpleserial_addcmd('c', MAX_SS_LEN, cmd_set_curve);
+    simpleserial_addcmd('c', MAX_SS_LEN, cmd_set_params);
     {%- if keygen %}
     	simpleserial_addcmd('g', 0, cmd_generate);
     {%- endif %}
