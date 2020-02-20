@@ -7,8 +7,8 @@ uint8_t *asn1_der_encode(const bn_t *r, const bn_t *s, size_t *result_len) {
     uint8_t s_len = (uint8_t) bn_to_bin_size(s);
 
 	// Pad with one zero byte in case most-significant bit of top byte is one.
-    uint8_t r_length = r_len + (bn_get_bit(r, r_len * 8) ? 1 : 0);
-    uint8_t s_length = s_len + (bn_get_bit(s, s_len * 8) ? 1 : 0);
+    uint8_t r_length = r_len + (bn_get_bit(r, (r_len * 8) - 1) ? 1 : 0);
+    uint8_t s_length = s_len + (bn_get_bit(s, (s_len * 8) - 1) ? 1 : 0);
 
     // R and S are < 128 bytes, so 1 byte tag + 1 byte len + len bytes value
     size_t seq_value_len = 2 + r_length + 2 + s_length;
@@ -29,6 +29,7 @@ uint8_t *asn1_der_encode(const bn_t *r, const bn_t *s, size_t *result_len) {
     whole_len += 1;
 
     uint8_t *data = malloc(whole_len);
+    *result_len = whole_len;
     size_t i = 0;
     data[i++] = 0x30; // SEQUENCE
     if (seq_value_len < 128) {
@@ -41,14 +42,14 @@ uint8_t *asn1_der_encode(const bn_t *r, const bn_t *s, size_t *result_len) {
     }
     data[i++] = 0x02; //INTEGER
     data[i++] = r_length;
-    if (bn_get_bit(r, r_len * 8)) {
+    if (bn_get_bit(r, (r_len * 8) - 1)) {
         data[i++] = 0;
     }
     bn_to_bin(r, data + i);
     i += r_len;
     data[i++] = 0x02; //INTEGER
     data[i++] = s_length;
-    if (bn_get_bit(s, s_len * 8)) {
+    if (bn_get_bit(s, (s_len * 8) - 1)) {
         data[i++] = 0;
     }
     bn_to_bin(s, data + i);

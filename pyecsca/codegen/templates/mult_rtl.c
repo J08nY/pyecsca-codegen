@@ -14,10 +14,10 @@ void scalar_mult(bn_t *scalar, point_t *point, curve_t *curve, point_t *out) {
 
     while (!bn_is_0(&copy)) {
         if (bn_get_bit(&copy, 0) == 1) {
-            point_add(q, r, curve, r);
+            point_add(r, q, curve, r);
         } else {
         	{%- if scalarmult.always %}
-			point_add(q, r, curve, dummy);
+			point_add(r, q, curve, dummy);
 			{%- endif %}
         }
         point_dbl(q, curve, q);

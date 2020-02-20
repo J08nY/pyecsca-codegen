@@ -19,10 +19,10 @@ void scalar_mult(bn_t *scalar, point_t *point, curve_t *curve, point_t *out) {
     for (int i = nbits; i >= 0; i--) {
         point_dbl(r, curve, r);
         if (bn_get_bit(scalar, i) == 1) {
-            point_add(q, r, curve, r);
+            point_add(r, q, curve, r);
         } else {
         	{%- if scalarmult.always %}
-			point_add(q, r, curve, dummy);
+			point_add(r, q, curve, dummy);
 			{%- endif %}
         }
     }

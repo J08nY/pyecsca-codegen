@@ -325,12 +325,17 @@ static uint8_t cmd_ecdsa_sign(uint8_t *data, uint16_t len) {
 	bn_t r; bn_init(&r);
 	point_to_affine(p, curve, &r, NULL);
 	bn_mod(&r, &curve->n, &r);
+	// r = ([k]G).x mod n
 
 	bn_t s; bn_init(&s);
 	bn_copy(&privkey, &s);
+	// s = x
 	bn_mod_mul(&s, &r, &curve->n, &s);
+	// s = rx mod n
 	bn_mod_add(&s, &h, &curve->n, &s);
+	// s = rx + H(m) mod n
 	bn_mod_div(&s, &k, &curve->n, &s);
+	// s = k^(-1)*(rx + H(m)) mod n
 
 	size_t result_len = 0;
 	uint8_t *result = asn1_der_encode(&r, &s, &result_len);
@@ -444,7 +449,7 @@ int main(void) {
     {%- endif %}
     {%- if ecdsa %}
     	simpleserial_addcmd('a', MAX_SS_LEN, cmd_ecdsa_sign);
-    	simpleserial_addcmd('v', MAX_SS_LEN, cmd_ecdsa_verify);
+    	simpleserial_addcmd('r', MAX_SS_LEN, cmd_ecdsa_verify);
     {%- endif %}
     simpleserial_addcmd('d', MAX_SS_LEN, cmd_debug);
 

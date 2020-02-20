@@ -68,16 +68,16 @@ def cmd_init_prng(seed: bytes) -> str:
 
 
 @public
-def cmd_set_params(group: DomainParameters) -> str:
+def cmd_set_params(params: DomainParameters) -> str:
     data = {
-        "p": encode_scalar(group.curve.prime),
-        "n": encode_scalar(group.order),
-        "h": encode_scalar(group.cofactor)
+        "p": encode_scalar(params.curve.prime),
+        "n": encode_scalar(params.order),
+        "h": encode_scalar(params.cofactor)
     }
-    for param, value in group.curve.parameters.items():
+    for param, value in params.curve.parameters.items():
         data[param] = encode_scalar(value)
-    data["g"] = encode_point(group.generator.to_affine())
-    data["i"] = encode_point(group.neutral)
+    data["g"] = encode_point(params.generator.to_affine())
+    data["i"] = encode_point(params.curve.neutral)
     return "c" + hexlify(encode_data(None, data)).decode()
 
 
@@ -113,7 +113,7 @@ def cmd_ecdsa_sign(data: bytes) -> str:
 
 @public
 def cmd_ecdsa_verify(data: bytes, sig: bytes) -> str:
-    return "v" + hexlify(encode_data(None, {"d": data, "s": sig})).decode()
+    return "r" + hexlify(encode_data(None, {"d": data, "s": sig})).decode()
 
 
 @public
@@ -173,7 +173,7 @@ class ImplTarget(SerialTarget):
     def scalar_mult(self, scalar: int) -> Point:
         self.write(cmd_scalar_mult(scalar).encode())
         result = self.read(1)[1:-1]
-        plen = (self.params.curve.prime + 7) // 8
+        plen = ((self.params.curve.prime.bit_length() + 7) // 8) * 2
         self.read(1)
         params = {var: Mod(int(result[i * plen:(i + 1) * plen], 16), self.params.curve.prime) for
                   i, var in enumerate(self.coords.variables)}
@@ -209,10 +209,12 @@ class ImplTarget(SerialTarget):
 class BinaryTarget(ImplTarget):
     binary: str
     process: Optional[Popen]
+    debug_output: bool
 
-    def __init__(self, binary: str, model: CurveModel, coords: CoordinateModel):
+    def __init__(self, binary: str, model: CurveModel, coords: CoordinateModel, debug_output: bool = False):
         super().__init__(model, coords)
         self.binary = binary
+        self.debug_output = debug_output
 
     def connect(self):
         self.process = Popen([self.binary], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -221,20 +223,26 @@ class BinaryTarget(ImplTarget):
     def write(self, data: bytes):
         if self.process is None:
             raise ValueError
+        if self.debug_output:
+            print(">>", data.decode())
         self.process.stdin.write(data.decode() + "\n")
         self.process.stdin.flush()
 
     def read(self, timeout: int) -> bytes:
         if self.process is None:
             raise ValueError
-        return self.process.stdout.readline().encode()
+        read = self.process.stdout.readline().encode()
+        if self.debug_output:
+            print("<<", read.decode(), end="")
+        return read
 
     def disconnect(self):
         if self.process is None:
             return
         self.process.stdin.close()
         self.process.stdout.close()
-        self.process.kill()
+        self.process.terminate()
+        self.process.wait()
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})

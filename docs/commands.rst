@@ -153,7 +153,7 @@ Verify with ECDSA
 
 Verify a message signature with ECDSA.
 
-- Character: :code:`v`
+- Character: :code:`r`
 - Payload: Encoded.
 
   - :code:`d` The message to verify.
@@ -173,6 +173,14 @@ Send back the implementation configuration (model and coordinate system).
 - Response:
 
   - :code:`d` The model shortname and coordinate system name, ASCII, comma-separated.
+
+Check version
+-------------
+ChipWhisperer command.
+
+- Character: :code:`v`
+- Payload: none
+- Response: :code:`z00` always.
 
 .. _ChipWhisperer: https://github.com/newaetech/chipwhisperer
 .. _XKCP: https://github.com/XKCP/XKCP

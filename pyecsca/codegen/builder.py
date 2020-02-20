@@ -73,16 +73,6 @@ def get_multiplier(ctx: click.Context, param, value: Optional[str]) -> Optional[
     return mult
 
 
-def get_ecdsa(ctx: click.Context, param, value: bool) -> bool:
-    if not value:
-        return False
-    ctx.ensure_object(dict)
-    formulas = ctx.obj["formulas"]
-    if not any(isinstance(formula, AdditionFormula) for formula in formulas):
-        raise click.BadParameter("ECDSA needs an addition formula. None was supplied.")
-    return value
-
-
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option()
 @public
@@ -118,12 +108,15 @@ def main():
               type=click.Choice(Reduction.names()),
               callback=wrap_enum(Reduction),
               help="Modular reduction algorithm to use.")
-@click.option("--keygen/--no-keygen", help="Whether to enable keygen.", is_flag=True, default=True, show_default=True)
-@click.option("--ecdh/--no-ecdh", help="Whether to enable ECDH.", is_flag=True, default=True, show_default=True)
+@click.option("--keygen/--no-keygen", help="Whether to enable keygen.", is_flag=True, default=True,
+              show_default=True)
+@click.option("--ecdh/--no-ecdh", help="Whether to enable ECDH.", is_flag=True, default=True,
+              show_default=True)
 @click.option("--ecdsa/--no-ecdsa", help="Whether to enable ECDSA.", is_flag=True, default=True,
-              callback=get_ecdsa, show_default=True)
+              show_default=True)
 @click.option("--strip", help="Whether to strip the binary or not.", is_flag=True)
-@click.option("--remove/--no-remove", help="Whether to remove the dir.", is_flag=True, default=True, show_default=True)
+@click.option("--remove/--no-remove", help="Whether to remove the dir.", is_flag=True, default=True,
+              show_default=True)
 @click.option("-v", "--verbose", count=True)
 @click.argument("model", required=True,
                 type=click.Choice(["shortw", "montgom", "edwards", "twisted"]),
@@ -135,8 +128,9 @@ def main():
 @click.argument("scalarmult", required=True,
                 callback=get_multiplier)
 @click.argument("outdir")
+@click.pass_context
 @public
-def build_impl(platform, hash, rand, mul, sqr, red, keygen, ecdh, ecdsa, strip, remove,
+def build_impl(ctx, platform, hash, rand, mul, sqr, red, keygen, ecdh, ecdsa, strip, remove,
                verbose, model, coords, formulas, scalarmult, outdir):
     """This command builds an ECC implementation.
 
@@ -147,6 +141,10 @@ def build_impl(platform, hash, rand, mul, sqr, red, keygen, ecdh, ecdsa, strip, 
     SCALARMULT: The scalar multiplication algorithm to use.
     OUTDIR: The output directory for files with the built impl.
     """
+    ctx.ensure_object(dict)
+    formulas = ctx.obj["formulas"]
+    if ecdsa and not any(isinstance(formula, AdditionFormula) for formula in formulas):
+        raise click.BadParameter("ECDSA needs an addition formula. None was supplied.")
 
     config = DeviceConfiguration(model, coords, formulas, scalarmult, hash, rand, mul, sqr, red,
                                  platform, keygen, ecdh, ecdsa)
