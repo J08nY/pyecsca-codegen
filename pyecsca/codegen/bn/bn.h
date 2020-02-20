@@ -41,6 +41,7 @@ void bn_rand_mod_reduce(bn_t *out, const bn_t *mod);
 
 void bn_mod_add(const bn_t *one, const bn_t *other, const bn_t *mod, bn_t *out);
 void bn_mod_sub(const bn_t *one, const bn_t *other, const bn_t *mod, bn_t *out);
+void bn_mod_neg(const bn_t *one, const bn_t *mod, bn_t *out);
 void bn_mod_mul(const bn_t *one, const bn_t *other, const bn_t *mod, bn_t *out);
 void bn_mod_sqr(const bn_t *one, const bn_t *mod, bn_t *out);
 void bn_mod_div(const bn_t *one, const bn_t *other, const bn_t *mod, bn_t *out);

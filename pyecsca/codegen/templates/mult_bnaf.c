@@ -4,11 +4,11 @@
 void scalar_mult(bn_t *scalar, point_t *point, curve_t *curve, point_t *out) {
 	point_t *neg = point_new();
 	point_neg(point, curve, neg);
-	point_t *q = point_copy(&curve->neutral);
+	point_t *q = point_copy(curve->neutral);
 
 	wnaf_t *naf = bn_bnaf(scalar);
 
-	for (size_t i = naf->length; i >= 0; i--) {
+	for (long i = naf->length - 1; i >= 0; i--) {
 		point_dbl(q, curve, q);
 		if (naf->data[i] == 1) {
 			point_add(q, point, curve, q);

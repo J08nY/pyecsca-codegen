@@ -11,9 +11,7 @@ from pkg_resources import resource_filename
 from public import public
 from pyecsca.ec.configuration import HashType, RandomMod
 from pyecsca.ec.coordinates import CoordinateModel
-from pyecsca.ec.formula import (Formula, AdditionFormula, DoublingFormula, TriplingFormula,
-                                NegationFormula, ScalingFormula, DifferentialAdditionFormula,
-                                LadderFormula)
+from pyecsca.ec.formula import (Formula)
 from pyecsca.ec.model import CurveModel
 from pyecsca.ec.mult import (ScalarMultiplier, LTRMultiplier, RTLMultiplier, CoronMultiplier,
                              LadderMultiplier, SimpleLadderMultiplier, DifferentialLadderMultiplier,
@@ -34,6 +32,8 @@ def render_op(op: OpType, result: str, left: str, right: str, mod: str) -> Optio
         return "bn_mod_add(&{}, &{}, &{}, &{});".format(left, right, mod, result)
     elif op == OpType.Sub:
         return "bn_mod_sub(&{}, &{}, &{}, &{});".format(left, right, mod, result)
+    elif op == OpType.Neg:
+        return "bn_mod_neg(&{}, &{}, &{});".format(right, mod, result)
     elif op == OpType.Mult:
         return "bn_mod_mul(&{}, &{}, &{}, &{});".format(left, right, mod, result)
     elif op == OpType.Div or op == OpType.Inv:
@@ -138,24 +138,13 @@ def render_coords_impl(coords: CoordinateModel) -> str:
                                               to_affine_rets=returns, to_affine_frees=frees)
 
 
+def render_formulas_impl(formulas: Set[Formula]) -> str:
+    names = {formula.shortname for formula in formulas}
+    return env.get_template("formulas.c").render(names=names)
+
+
 def render_formula_impl(formula: Formula, short_circuit: bool = False) -> str:
-    if isinstance(formula, AdditionFormula):
-        tname = "formula_add.c"
-    elif isinstance(formula, DoublingFormula):
-        tname = "formula_dbl.c"
-    elif isinstance(formula, TriplingFormula):
-        tname = "formula_tpl.c"
-    elif isinstance(formula, NegationFormula):
-        tname = "formula_neg.c"
-    elif isinstance(formula, ScalingFormula):
-        tname = "formula_scl.c"
-    elif isinstance(formula, DifferentialAdditionFormula):
-        tname = "formula_dadd.c"
-    elif isinstance(formula, LadderFormula):
-        tname = "formula_ladd.c"
-    else:
-        raise ValueError
-    template = env.get_template(tname)
+    template = env.get_template(f"formula_{formula.shortname}.c")
     inputs = ["one", "other", "diff"]
     outputs = ["out_one", "out_other"]
     renames = {}
@@ -172,6 +161,7 @@ def render_formula_impl(formula: Formula, short_circuit: bool = False) -> str:
     namespace = transform_ops(formula.code, formula.coordinate_model.curve_model.parameter_names,
                               formula.outputs, renames)
     namespace["short_circuit"] = short_circuit
+    namespace["formula"] = formula
     return template.render(namespace)
 
 
@@ -212,7 +202,7 @@ def render(config: DeviceConfiguration) -> Tuple[str, str, str]:
     """
     temp = tempfile.mkdtemp()
     symlinks = ["asn1", "bn", "hal", "hash", "mult", "prng", "simpleserial", "tommath", "fat.h",
-                "point.h", "curve.h", "mult.h", "Makefile.inc"]
+                "point.h", "curve.h", "mult.h", "formulas.h", "Makefile.inc"]
     for sym in symlinks:
         os.symlink(resource_filename("pyecsca.codegen", sym), path.join(temp, sym))
     gen_dir = path.join(temp, "gen")
@@ -222,11 +212,10 @@ def render(config: DeviceConfiguration) -> Tuple[str, str, str]:
     save_render(temp, "main.c",
                 render_main(config.model, config.coords, config.keygen, config.ecdh, config.ecdsa))
     save_render(gen_dir, "defs.h", render_defs(config.model, config.coords))
-    point_render = render_coords_impl(config.coords)
+    save_render(gen_dir, "point.c", render_coords_impl(config.coords))
+    save_render(gen_dir, "formulas.c", render_formulas_impl(config.formulas))
     for formula in config.formulas:
-        point_render += "\n"
-        point_render += render_formula_impl(formula, config.scalarmult.short_circuit)
-    save_render(gen_dir, "point.c", point_render)
+        save_render(gen_dir, f"formula_{formula.shortname}.c", render_formula_impl(formula, config.scalarmult.short_circuit))
     save_render(gen_dir, "curve.c", render_curve_impl(config.model))
     save_render(gen_dir, "mult.c", render_scalarmult_impl(config.scalarmult))
     return temp, "pyecsca-codegen-{}.elf".format(
@@ -250,8 +239,7 @@ def build(dir: str, elf_file: str, hex_file: str, outdir: str, strip: bool = Fal
     if res.returncode != 0:
         raise ValueError("Build failed!")
     if strip:
-        s = subprocess.run(["strip", elf_file], cwd=dir)
-        s.returncode
+        subprocess.run(["strip", elf_file], cwd=dir)
     full_elf_path = path.join(dir, elf_file)
     full_hex_path = path.join(dir, hex_file)
     shutil.copy(full_elf_path, outdir)

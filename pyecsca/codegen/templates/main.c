@@ -9,6 +9,7 @@
 #include "point.h"
 #include "curve.h"
 #include "fat.h"
+#include "formulas.h"
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -47,12 +48,8 @@ static size_t parse_data(const uint8_t *data, size_t len, const char *path, void
 	return parsed;
 }
 
-static void parse_init_prng(const char *path, const uint8_t *data, size_t len, void *arg) {
-	prng_seed(data, len);
-}
-
 static uint8_t cmd_init_prng(uint8_t *data, uint16_t len) {
-    parse_data(data, len, "", parse_init_prng, NULL);
+    prng_seed(data, len);
     return 0;
 }
 
@@ -110,7 +107,6 @@ static uint8_t cmd_set_params(uint8_t *data, uint16_t len) {
 static uint8_t cmd_generate(uint8_t *data, uint16_t len) {
 	// generate a keypair, export privkey and affine pubkey
 	trigger_high();
-	bn_init(&privkey);
 	bn_rand_mod(&privkey, &curve->n);
 	size_t priv_size = bn_to_bin_size(&privkey);
 	size_t coord_size = bn_to_bin_size(&curve->p);
@@ -426,6 +422,7 @@ static uint8_t cmd_debug(uint8_t *data, uint16_t len) {
 int main(void) {
     platform_init();
     prng_init();
+    formulas_init();
     init_uart();
     trigger_setup();
 
@@ -450,6 +447,12 @@ int main(void) {
     	simpleserial_addcmd('v', MAX_SS_LEN, cmd_ecdsa_verify);
     {%- endif %}
     simpleserial_addcmd('d', MAX_SS_LEN, cmd_debug);
+
     while(simpleserial_get());
+
+    bn_clear(&privkey);
+    curve_free(curve);
+    point_free(pubkey);
+    formulas_clear();
     return 0;
 }

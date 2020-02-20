@@ -1,6 +1,6 @@
 TARGET = pyecsca-codegen
 
-SRC += main.c bn/bn.c asn1/asn1.c hash/hash.c prng/prng.c gen/point.c gen/curve.c gen/mult.c
+SRC += main.c bn/bn.c asn1/asn1.c hash/hash.c prng/prng.c $(wildcard gen/*.c)
 
 PLATFORM = {{ platform }}
 

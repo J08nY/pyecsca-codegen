@@ -3,13 +3,13 @@ from unittest import TestCase
 
 from click.testing import CliRunner
 from pyecsca.ec.curves import get_params
-from pyecsca.ec.mult import LTRMultiplier, RTLMultiplier, CoronMultiplier
+from pyecsca.ec.mult import LTRMultiplier, RTLMultiplier, CoronMultiplier, BinaryNAFMultiplier
 
 from pyecsca.codegen.builder import build_impl
 from pyecsca.codegen.client import BinaryTarget
 
 
-class ImplementationTest(TestCase):
+class KeyGenerationTests(TestCase):
 
     def setUp(self):
         self.secp128r1 = get_params("secg", "secp128r1", "projective")
@@ -72,6 +72,12 @@ class ImplementationTest(TestCase):
         self.do_basic_test(runner, self.secp128r1, CoronMultiplier,
                            ["add-1998-cmo", "dbl-1998-cmo"], "coron")
 
+    def test_bnaf(self):
+        runner = CliRunner()
+        self.do_basic_test(runner, self.secp128r1, BinaryNAFMultiplier,
+                           ["add-1998-cmo", "dbl-1998-cmo", "neg"], "bnaf")
+
     # def test_ladder(self):
     #    runner = CliRunner()
     #    self.do_basic_test(runner, self.curve25519, LadderMultiplier, ["ladd-1987-m", "dbl-1987-m"], "ldr")
+    #    # TODO: what about coords where generator is not affine?

@@ -72,6 +72,11 @@ void bn_mod_sub(const bn_t *one, const bn_t *other, const bn_t *mod, bn_t *out) 
 	mp_submod(one, other, mod, out);
 }
 
+void bn_mod_neg(const bn_t *one, const bn_t *mod, bn_t *out) {
+	mp_neg(one, out);
+	mp_mod(out, mod, out);
+}
+
 void bn_mod_mul(const bn_t *one, const bn_t *other, const bn_t *mod, bn_t *out) {
 	mp_mulmod(one, other, mod, out);
 }
