@@ -7,15 +7,12 @@
 typedef struct ss_cmd
 {
 	char c;
-	unsigned int len;
+	uint32_t len;
 	uint8_t (*fp)(uint8_t*, uint16_t);
 } ss_cmd;
 
 static ss_cmd commands[MAX_SS_CMDS];
 static int num_commands = 0;
-
-#define SS_VER_1_0 0
-#define SS_VER_1_1 1
 
 static char hex_lookup[16] =
 {
@@ -23,7 +20,7 @@ static char hex_lookup[16] =
 	'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
 };
 
-int hex_decode(int len, char* ascii_buf, uint8_t* data_buf)
+int hex_decode(uint32_t len, char* ascii_buf, uint8_t* data_buf)
 {
 	if (len % 2 != 0)
 		return 1;
@@ -69,7 +66,7 @@ void simpleserial_init()
 	simpleserial_addcmd('v', 0, check_version);
 }
 
-int simpleserial_addcmd(char c, unsigned int len, uint8_t (*fp)(uint8_t*, uint16_t))
+int simpleserial_addcmd(char c, uint32_t len, uint8_t (*fp)(uint8_t*, uint16_t))
 {
 	if(num_commands >= MAX_SS_CMDS)
 		return 1;
@@ -109,7 +106,7 @@ int simpleserial_get(void)
 		return 1;
 
 	// Receive characters until we fill the ASCII buffer
-	int i = 0;
+	uint32_t i = 0;
 	for(; i < 2*commands[cmd].len; i++)
 	{
 		c = getch();
@@ -120,6 +117,21 @@ int simpleserial_get(void)
 
 		ascii_buf[i] = c;
 	}
+//	uint8_t ik[4];
+//	ik[3] = (uint8_t) i & 0xff;
+//	ik[2] = (uint8_t) (i>>8) & 0xff;
+//	ik[1] = (uint8_t) (i>>16) & 0xff;
+//	ik[0] = (uint8_t) (i>>24) & 0xff;
+//	uint8_t ic[4];
+//	ic[3] = (uint8_t) c & 0xff;
+//	ic[2] = (uint8_t) (c>>8) & 0xff;
+//	ic[1] = (uint8_t) (c>>16) & 0xff;
+//	ic[0] = (uint8_t) (c>>24) & 0xff;
+//	if (commands[cmd].c == 'd') {
+//		simpleserial_put('o', 4, ik);
+//		simpleserial_put('c', 4, ic);
+//	}
+
 
 	// ASCII buffer is full: convert to bytes 
 	// Check for illegal characters here
@@ -130,14 +142,11 @@ int simpleserial_get(void)
 	uint8_t ret[1];
 	ret[0] = commands[cmd].fp(data_buf, i/2);
 	
-	// Acknowledge (if version is 1.1)
-#if SS_VER == SS_VER_1_1
 	simpleserial_put('z', 1, ret);
-#endif
 	return 1;
 }
 
-void simpleserial_put(char c, int size, uint8_t* output)
+void simpleserial_put(char c, uint32_t size, uint8_t* output)
 {
 	// Write first character
 	putch(c);

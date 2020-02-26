@@ -11,7 +11,7 @@ class BuilderTests(TestCase):
         runner = CliRunner()
         with runner.isolated_filesystem():
             result = runner.invoke(build_impl,
-                                   ["--platform", "HOST", "-v", "shortw", "projective",
+                                   ["--platform", "HOST", "shortw", "projective",
                                     "add-1998-cmo",
                                     "dbl-1998-cmo", "z", "ltr(complete=True)", "."])
             self.assertEqual(result.exit_code, 0)

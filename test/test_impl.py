@@ -11,7 +11,7 @@ from pyecsca.ec.point import Point
 from pyecsca.ec.signature import ECDSA_SHA1, SignatureResult
 
 from pyecsca.codegen.builder import build_impl
-from pyecsca.codegen.client import BinaryTarget
+from pyecsca.codegen.client import HostTarget
 
 
 class ImplTests(TestCase):
@@ -36,9 +36,8 @@ class ImplTests(TestCase):
                            *formulas,
                            f"{mult_name}({','.join(f'{key}={value}' for key, value in mult_kwargs.items())})",
                            "."])
-            target = BinaryTarget(join(tmpdir, "pyecsca-codegen-HOST.elf"),
-                                  params.curve.model,
-                                  params.curve.coordinate_model)
+            target = HostTarget(params.curve.model, params.curve.coordinate_model,
+                                binary=join(tmpdir, "pyecsca-codegen-HOST.elf"))
             target.connect()
             target.set_params(params)
             formula_instances = [params.curve.coordinate_model.formulas[formula] for formula

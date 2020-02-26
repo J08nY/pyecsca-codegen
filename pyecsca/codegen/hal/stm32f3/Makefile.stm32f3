@@ -13,6 +13,7 @@ MCU_FLAGS = -mcpu=cortex-m4
 CC = arm-none-eabi-gcc
 OBJCOPY = arm-none-eabi-objcopy
 OBJDUMP = arm-none-eabi-objdump
+STRIP = arm-none-eabi-strip
 SIZE = arm-none-eabi-size
 AR = arm-none-eabi-ar rcs
 NM = arm-none-eabi-nm
@@ -20,9 +21,9 @@ NM = arm-none-eabi-nm
 #Output Format = Binary for this target
 FORMAT = binary
 
-CFLAGS += -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fmessage-length=0 -ffunction-sections
-CPPFLAGS += -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fmessage-length=0 -ffunction-sections
-ASFLAGS += -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fmessage-length=0 -ffunction-sections
+CFLAGS += -mthumb -mfloat-abi=soft -mfpu=fpv4-sp-d16 -fmessage-length=0 -ffunction-sections
+CPPFLAGS += -mthumb -mfloat-abi=soft -mfpu=fpv4-sp-d16 -fmessage-length=0 -ffunction-sections
+ASFLAGS += -mthumb -mfloat-abi=soft -mfpu=fpv4-sp-d16 -fmessage-length=0 -ffunction-sections
 
 CDEFS += -DSTM32F303xC -DSTM32F3 -DSTM32 -DDEBUG
 CPPDEFS += -DSTM32F303xC -DSTM32F3 -DSTM32 -DDEBUG

@@ -10,11 +10,11 @@ import click
 from public import public
 from pyecsca.ec.configuration import Multiplication, Squaring, Reduction, HashType, RandomMod
 from pyecsca.ec.coordinates import CoordinateModel
-from pyecsca.ec.formula import (Formula, AdditionFormula)
-from pyecsca.ec.model import (CurveModel)
-from pyecsca.ec.mult import (ScalarMultiplier)
+from pyecsca.ec.formula import Formula, AdditionFormula
+from pyecsca.ec.model import CurveModel
+from pyecsca.ec.mult import ScalarMultiplier
 
-from pyecsca.codegen.render import render
+from .render import render
 from .common import Platform, DeviceConfiguration, MULTIPLIERS, wrap_enum, get_model, get_coords
 
 
@@ -150,12 +150,10 @@ def build_impl(ctx, platform, hash, rand, mul, sqr, red, keygen, ecdh, ecdsa, st
                                  platform, keygen, ecdh, ecdsa)
     dir, elf_file, hex_file = render(config)
 
-    res = subprocess.run(["make"], cwd=dir, capture_output=True)
-    if verbose >= 1:
-        click.echo(res.stdout.decode())
+    subprocess.run(["make"], cwd=dir, capture_output=not verbose)
 
     if strip:
-        subprocess.run(["strip", elf_file], cwd=dir)
+        subprocess.run(["make", "strip"], cwd=dir, capture_output=not verbose)
     full_elf_path = path.join(dir, elf_file)
     full_hex_path = path.join(dir, hex_file)
     shutil.copy(full_elf_path, outdir)
@@ -231,14 +229,14 @@ def list_impl(model: Optional[CurveModel], coords: Optional[CoordinateModel],
                 subsequent_indent="\t"))
 
 
-@main.command()
+@main.command("flash")
 @click.option("--platform", envvar="PLATFORM", required=True,
               type=click.Choice(Platform.names()),
               callback=wrap_enum(Platform),
               help="The platform to flash.")
 @click.argument("dir")
 @public
-def flash(platform, dir):  # pragma: no cover
+def flash_impl(platform, dir):  # pragma: no cover
     """This command flashes a chip through the ChipWhisperer framework with the built implementation.
 
     \b

@@ -420,16 +420,19 @@ static uint8_t cmd_debug(uint8_t *data, uint16_t len) {
 	char *debug_string = "{{ ','.join((model.shortname, coords.name))}}";
 	size_t debug_len = strlen(debug_string);
 
+	simpleserial_put('r', len, data);
+
 	simpleserial_put('d', debug_len, (uint8_t *) debug_string);
 	return 0;
 }
 
 int main(void) {
-    platform_init();
-    prng_init();
-    formulas_init();
+	platform_init();
     init_uart();
     trigger_setup();
+
+    prng_init();
+    formulas_init();
 
     curve = curve_new();
     pubkey = point_new();

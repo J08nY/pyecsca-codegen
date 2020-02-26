@@ -7,6 +7,21 @@
 #define bn_err mp_err
 #define bn_sign mp_sign
 
+#define BN_OKAY MP_OKAY /* no error */
+#define BN_ERR MP_ERR   /* unknown error */
+#define BN_MEM MP_MEM   /* out of mem */
+#define BN_VAL MP_VAL   /* invalid input */
+#define BN_ITER MP_ITER /* maximum iterations reached */
+#define BN_BUF MP_BUF   /* buffer overflow, supplied buffer too small */
+#define BN_OVF MP_OVF   /* mp_int overflow, too many digits */
+
+#define BN_ZPOS MP_ZPOS
+#define BN_NEG MP_NEG
+
+#define BN_LT MP_LT /* less than */
+#define BN_EQ MP_EQ /* equal */
+#define BN_GT MP_GT /* greater than */
+
 typedef struct {
 	char name;
 	bn_t value;
@@ -19,19 +34,19 @@ typedef struct {
 } wnaf_t;
 
 bn_err bn_init(bn_t *bn);
-void bn_copy(const bn_t *from, bn_t *to);
+bn_err bn_copy(const bn_t *from, bn_t *to);
 void bn_clear(bn_t *bn);
 
 int bn_from_bin(const uint8_t *data, size_t size, bn_t *out);
 int bn_from_hex(const char *data, bn_t *out);
-int bn_from_int(uint64_t value, bn_t *out);
+int bn_from_int(unsigned int value, bn_t *out);
 
-void bn_to_binpad(const bn_t *one, uint8_t *data, size_t size);
-void bn_to_bin(const bn_t *one, uint8_t *data);
+bn_err bn_to_binpad(const bn_t *one, uint8_t *data, size_t size);
+bn_err bn_to_bin(const bn_t *one, uint8_t *data);
 size_t bn_to_bin_size(const bn_t *one);
 
-void bn_rand_mod_sample(bn_t *out, const bn_t *mod);
-void bn_rand_mod_reduce(bn_t *out, const bn_t *mod);
+bn_err bn_rand_mod_sample(bn_t *out, const bn_t *mod);
+bn_err bn_rand_mod_reduce(bn_t *out, const bn_t *mod);
 
 #if MOD_RAND == MOD_RAND_SAMPLE
 #define bn_rand_mod bn_rand_mod_sample
@@ -39,18 +54,18 @@ void bn_rand_mod_reduce(bn_t *out, const bn_t *mod);
 #define bn_rand_mod bn_rand_mod_reduce
 #endif
 
-void bn_mod_add(const bn_t *one, const bn_t *other, const bn_t *mod, bn_t *out);
-void bn_mod_sub(const bn_t *one, const bn_t *other, const bn_t *mod, bn_t *out);
-void bn_mod_neg(const bn_t *one, const bn_t *mod, bn_t *out);
-void bn_mod_mul(const bn_t *one, const bn_t *other, const bn_t *mod, bn_t *out);
-void bn_mod_sqr(const bn_t *one, const bn_t *mod, bn_t *out);
-void bn_mod_div(const bn_t *one, const bn_t *other, const bn_t *mod, bn_t *out);
-void bn_mod_inv(const bn_t *one, const bn_t *mod, bn_t *out);
-void bn_mod_pow(const bn_t *one, const bn_t *exp, const bn_t *mod, bn_t *out);
-void bn_mod(const bn_t *one, const bn_t *mod, bn_t *out);
+bn_err bn_mod_add(const bn_t *one, const bn_t *other, const bn_t *mod, bn_t *out);
+bn_err bn_mod_sub(const bn_t *one, const bn_t *other, const bn_t *mod, bn_t *out);
+bn_err bn_mod_neg(const bn_t *one, const bn_t *mod, bn_t *out);
+bn_err bn_mod_mul(const bn_t *one, const bn_t *other, const bn_t *mod, bn_t *out);
+bn_err bn_mod_sqr(const bn_t *one, const bn_t *mod, bn_t *out);
+bn_err bn_mod_div(const bn_t *one, const bn_t *other, const bn_t *mod, bn_t *out);
+bn_err bn_mod_inv(const bn_t *one, const bn_t *mod, bn_t *out);
+bn_err bn_mod_pow(const bn_t *one, const bn_t *exp, const bn_t *mod, bn_t *out);
+bn_err bn_mod(const bn_t *one, const bn_t *mod, bn_t *out);
 
-void bn_lsh(const bn_t *one, int amount, bn_t *out);
-void bn_rsh(const bn_t *one, int amount, bn_t *out);
+bn_err bn_lsh(const bn_t *one, int amount, bn_t *out);
+bn_err bn_rsh(const bn_t *one, int amount, bn_t *out);
 
 bool bn_eq(const bn_t *one, const bn_t *other);
 bool bn_is_0(const bn_t *one);

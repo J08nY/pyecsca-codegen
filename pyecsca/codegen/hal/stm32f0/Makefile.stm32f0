@@ -9,6 +9,7 @@ MCU_FLAGS = -mcpu=cortex-m0
 CC = arm-none-eabi-gcc
 OBJCOPY = arm-none-eabi-objcopy
 OBJDUMP = arm-none-eabi-objdump
+STRIP = arm-none-eabi-strip
 SIZE = arm-none-eabi-size
 AR = arm-none-eabi-ar rcs
 NM = arm-none-eabi-nm

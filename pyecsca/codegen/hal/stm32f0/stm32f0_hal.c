@@ -23,11 +23,10 @@ void platform_init(void)
      HAL_RCC_OscConfig(&RCC_OscInitStruct);
 
      RCC_ClkInitTypeDef RCC_ClkInitStruct;
-     RCC_ClkInitStruct.ClockType      = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
+     RCC_ClkInitStruct.ClockType      = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_PCLK1);
      RCC_ClkInitStruct.SYSCLKSource   = RCC_SYSCLKSOURCE_HSI;
      RCC_ClkInitStruct.AHBCLKDivider  = RCC_SYSCLK_DIV1;
      RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-     RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
      uint32_t flash_latency = 0;
      HAL_RCC_ClockConfig(&RCC_ClkInitStruct, flash_latency);
 #else
@@ -61,7 +60,7 @@ void init_uart(void)
 	__HAL_RCC_USART1_CLK_ENABLE();
 	__HAL_RCC_USART1_CONFIG(RCC_USART1CLKSOURCE_SYSCLK);
 	UartHandle.Instance        = USART1;
-	UartHandle.Init.BaudRate   = 38400;
+	UartHandle.Init.BaudRate   = 115200;
 	UartHandle.Init.WordLength = UART_WORDLENGTH_8B;
 	UartHandle.Init.StopBits   = UART_STOPBITS_1;
 	UartHandle.Init.Parity     = UART_PARITY_NONE;

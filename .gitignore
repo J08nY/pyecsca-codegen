@@ -5,5 +5,5 @@ htmlcov/
 /build/
 __pycache__
 
-pyecsca-codegen-HOST.elf
-pyecsca-codegen-HOST.hex
+pyecsca-codegen-*.elf
+pyecsca-codegen-*.hex

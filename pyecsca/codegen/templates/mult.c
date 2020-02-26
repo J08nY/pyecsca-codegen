@@ -1,6 +1,4 @@
 
-#include "mult.h"
-
 {%- if isinstance(scalarmult, LTRMultiplier) -%}
 
 	{% include "mult_ltr.c" %}

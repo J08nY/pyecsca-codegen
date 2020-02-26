@@ -70,10 +70,10 @@ class ClientTests(TestCase):
         runner = CliRunner()
         with runner.isolated_filesystem() as tmpdir:
             runner.invoke(build_impl,
-                          ["--platform", "HOST", "-v", "shortw", "projective",
+                          ["--platform", "HOST", "shortw", "projective",
                            "add-1998-cmo", "dbl-1998-cmo", "z", "ltr(complete=False)", "."])
             result = runner.invoke(main,
-                                   ["--platform", "HOST", "--binary",
+                                   ["--platform", "HOST", "--fw",
                                     join(tmpdir, "pyecsca-codegen-HOST.elf"),
                                     "shortw", "projective", "gen", "secg/secp128r1"])
             self.assertEqual(result.exit_code, 0)

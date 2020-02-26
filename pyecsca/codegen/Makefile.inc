@@ -14,6 +14,8 @@
 #
 # make extcoff = Convert ELF to AVR Extended COFF.
 #
+# make strip = Strip the binary.
+#
 # make program = Download the hex file to the device, using avrdude.
 #                Please customize the avrdude settings below first!
 #
@@ -291,7 +293,7 @@ MSG_CREATING_LIBRARY = Creating library:
 
 
 # Define all object files.
-OBJ = $(SRC:%.c=$(OBJDIR)/%.o) $(CPPSRC:%.cpp=$(OBJDIR)/%.o) $(ASRC:%.S=$(OBJDIR)/%.o) 
+OBJ = $(SRC:%.c=$(OBJDIR)/%.o) $(CPPSRC:%.cpp=$(OBJDIR)/%.o) $(ASRC:%.S=$(OBJDIR)/%.o)
 
 # Define all listing files.
 LST = $(SRC:%.c=$(OBJDIR)/%.lst) $(CPPSRC:%.cpp=$(OBJDIR)/%.lst) $(ASRC:%.S=$(OBJDIR)/%.lst) 
@@ -346,6 +348,9 @@ HEXSIZE = $(SIZE) --target=ihex $(TARGET-PLAT).hex
 ifeq ($(ELFSIZE),)
   ELFSIZE = $(SIZE) $(TARGET-PLAT).elf
 endif
+
+strip:
+	$(STRIP) $(TARGET-PLAT).elf
 
 sizeafter: build
 	@echo $(MSG_SIZE_AFTER)
@@ -551,7 +556,7 @@ clean_list :
 
 
 # Listing of phony targets.
-.PHONY : all begin finish end sizeafter gccversion \
+.PHONY : all begin finish end strip sizeafter gccversion \
 build elf hex eep lss sym coff extcoff \
 clean clean_list clean_print clean_objs program debug gdb-config
 

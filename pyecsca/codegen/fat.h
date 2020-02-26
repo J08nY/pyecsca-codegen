@@ -1,8 +1,10 @@
 #ifndef FAT_H_
 #define FAT_H_
 
+#include <stdlib.h>
+
 typedef struct {
-	size_t len;
+	uint32_t len;
 	void *value;
 } fat_t;
 

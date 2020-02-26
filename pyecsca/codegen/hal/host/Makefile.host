@@ -5,6 +5,7 @@ EXTRAINCDIRS += $(HALPATH)/host
 CC = gcc
 OBJCOPY = objcopy
 OBJDUMP = objdump
+STRIP = strip
 SIZE = size
 AR = ar rcs
 NM = nm

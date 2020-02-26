@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-import subprocess
 from binascii import hexlify, unhexlify
 from os import path
-from subprocess import Popen
+from time import time, sleep
 from typing import Mapping, Union, Optional, Tuple
 
+import chipwhisperer as cw
 import click
+from chipwhisperer.capture.api.programmers import STM32FProgrammer, XMEGAProgrammer
+from chipwhisperer.capture.targets import SimpleSerial
 from public import public
 from pyecsca.ec.coordinates import CoordinateModel, AffineCoordinateModel
 from pyecsca.ec.curves import get_params
@@ -13,7 +15,8 @@ from pyecsca.ec.mod import Mod
 from pyecsca.ec.model import CurveModel
 from pyecsca.ec.params import DomainParameters
 from pyecsca.ec.point import Point, InfinityPoint
-from pyecsca.sca import SerialTarget
+from pyecsca.sca.target import (SimpleSerialTarget, ChipWhispererTarget, BinaryTarget, Flashable,
+                                SimpleSerialMessage as SMessage)
 
 from .common import wrap_enum, Platform, get_model, get_coords
 
@@ -121,15 +124,21 @@ def cmd_debug() -> str:
     return "d"
 
 
-class ImplTarget(SerialTarget):
+class ImplTarget(SimpleSerialTarget):
     model: CurveModel
     coords: CoordinateModel
     seed: Optional[bytes]
     params: Optional[DomainParameters]
     privkey: Optional[int]
     pubkey: Optional[Point]
+    timeout: int
 
-    def __init__(self, model: CurveModel, coords: CoordinateModel):
+    def __init__(self, model: CurveModel, coords: CoordinateModel, **kwargs):
+        super().__init__(**kwargs)
+        if "timeout" in kwargs:
+            self.timeout = kwargs["timeout"]
+        else:
+            self.timeout = 1000
         self.model = model
         self.coords = coords
         self.seed = None
@@ -138,20 +147,17 @@ class ImplTarget(SerialTarget):
         self.pubkey = None
 
     def init_prng(self, seed: bytes) -> None:
-        self.write(cmd_init_prng(seed).encode())
-        self.read(1)
+        self.send_cmd(SMessage.from_raw(cmd_init_prng(seed)), self.timeout)
         self.seed = seed
 
     def set_params(self, params: DomainParameters) -> None:
-        self.write(cmd_set_params(params).encode())
-        self.read(1)
+        self.send_cmd(SMessage.from_raw(cmd_set_params(params)), self.timeout)
         self.params = params
 
     def generate(self) -> Tuple[int, Point]:
-        self.write(cmd_generate().encode())
-        priv = self.read(1).decode()[1:-1]
-        pub = self.read(1).decode()[1:-1]
-        self.read(1)
+        resp = self.send_cmd(SMessage.from_raw(cmd_generate()), self.timeout)
+        priv = resp["s"].data
+        pub = resp["w"].data
         self.privkey = int(priv, 16)
         pub_len = len(pub)
         x = int(pub[:pub_len // 2], 16)
@@ -161,88 +167,62 @@ class ImplTarget(SerialTarget):
         return self.privkey, self.pubkey
 
     def set_privkey(self, privkey: int) -> None:
-        self.write(cmd_set_privkey(privkey).encode())
-        self.read(1)
+        self.send_cmd(SMessage.from_raw(cmd_set_privkey(privkey)), self.timeout)
         self.privkey = privkey
 
     def set_pubkey(self, pubkey: Point) -> None:
-        self.write(cmd_set_pubkey(pubkey).encode())
-        self.read(1)
+        self.send_cmd(SMessage.from_raw(cmd_set_pubkey(pubkey)), self.timeout)
         self.pubkey = pubkey
 
     def scalar_mult(self, scalar: int) -> Point:
-        self.write(cmd_scalar_mult(scalar).encode())
-        result = self.read(1)[1:-1]
+        resp = self.send_cmd(SMessage.from_raw(cmd_scalar_mult(scalar)), self.timeout)
+        result = resp["w"]
         plen = ((self.params.curve.prime.bit_length() + 7) // 8) * 2
-        self.read(1)
-        params = {var: Mod(int(result[i * plen:(i + 1) * plen], 16), self.params.curve.prime) for
+        params = {var: Mod(int(result.data[i * plen:(i + 1) * plen], 16), self.params.curve.prime) for
                   i, var in enumerate(self.coords.variables)}
         return Point(self.coords, **params)
 
     def ecdh(self, other_pubkey: Point) -> bytes:
-        self.write(cmd_ecdh(other_pubkey).encode())
-        result = self.read(1)
-        self.read(1)
-        return unhexlify(result[1:-1])
+        resp = self.send_cmd(SMessage.from_raw(cmd_ecdh(other_pubkey)), self.timeout)
+        result = resp["r"]
+        return unhexlify(result.data)
 
     def ecdsa_sign(self, data: bytes) -> bytes:
-        self.write(cmd_ecdsa_sign(data).encode())
-        signature = self.read(1)
-        self.read(1)
-        return unhexlify(signature[1:-1])
+        resp = self.send_cmd(SMessage.from_raw(cmd_ecdsa_sign(data)), self.timeout)
+        signature = resp["s"]
+        return unhexlify(signature.data)
 
     def ecdsa_verify(self, data: bytes, signature: bytes) -> bool:
-        self.write(cmd_ecdsa_verify(data, signature).encode())
-        result = self.read(1)
-        self.read(1)
-        return unhexlify(result[1:-1])[0] == 1
+        resp = self.send_cmd(SMessage.from_raw(cmd_ecdsa_verify(data, signature)), self.timeout)
+        result = resp["v"]
+        return unhexlify(result.data)[0] == 1
 
     def debug(self) -> Tuple[str, str]:
-        self.write(cmd_debug().encode())
-        resp = self.read(1)
-        self.read(1)
-        model, coords = unhexlify(resp[1:-1]).decode().split(",")
+        resp = self.send_cmd(SMessage.from_raw(cmd_debug()), self.timeout)["d"]
+        model, coords = unhexlify(resp.data).decode().split(",")
         return model, coords
 
 
 @public
-class BinaryTarget(ImplTarget):
-    binary: str
-    process: Optional[Popen]
-    debug_output: bool
+class DeviceTarget(ImplTarget, ChipWhispererTarget):
 
-    def __init__(self, binary: str, model: CurveModel, coords: CoordinateModel, debug_output: bool = False):
-        super().__init__(model, coords)
-        self.binary = binary
-        self.debug_output = debug_output
-
-    def connect(self):
-        self.process = Popen([self.binary], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                             text=True, bufsize=1)
-
-    def write(self, data: bytes):
-        if self.process is None:
+    def __init__(self, model: CurveModel, coords: CoordinateModel, platform: Platform):
+        scope = cw.scope()
+        scope.default_setup()
+        target = SimpleSerial()
+        if platform in (Platform.STM32F0, Platform.STM32F3):
+            programmer = STM32FProgrammer
+        elif platform == Platform.XMEGA:
+            programmer = XMEGAProgrammer
+        else:
             raise ValueError
-        if self.debug_output:
-            print(">>", data.decode())
-        self.process.stdin.write(data.decode() + "\n")
-        self.process.stdin.flush()
+        super().__init__(model, coords, target=target, scope=scope, programmer=programmer)
 
-    def read(self, timeout: int) -> bytes:
-        if self.process is None:
-            raise ValueError
-        read = self.process.stdout.readline().encode()
-        if self.debug_output:
-            print("<<", read.decode(), end="")
-        return read
+@public
+class HostTarget(ImplTarget, BinaryTarget):
 
-    def disconnect(self):
-        if self.process is None:
-            return
-        self.process.stdin.close()
-        self.process.stdout.close()
-        self.process.terminate()
-        self.process.wait()
+    def __init__(self, model: CurveModel, coords: CoordinateModel, **kwargs):
+        super().__init__(model, coords, **kwargs)
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -250,7 +230,9 @@ class BinaryTarget(ImplTarget):
               type=click.Choice(Platform.names()),
               callback=wrap_enum(Platform),
               help="The target platform to use.")
-@click.option("--binary", help="For HOST target only. The binary to run.")
+@click.option("--fw",
+              help="The firmware. Either a .hex file for a device platform or .elf for HOST platform.",
+              required=True)
 @click.argument("model", required=True,
                 type=click.Choice(["shortw", "montgom", "edwards", "twisted"]),
                 callback=get_model)
@@ -259,29 +241,19 @@ class BinaryTarget(ImplTarget):
 @click.version_option()
 @click.pass_context
 @public
-def main(ctx, platform, binary, model, coords):
+def main(ctx, platform, fw, model, coords):
     """
     A tool for communicating with built and flashed ECC implementations.
     """
     ctx.ensure_object(dict)
+    ctx.obj["fw"] = fw
     if platform != Platform.HOST:
-        from pyecsca.sca.target import has_chipwhisperer
-        if not has_chipwhisperer:
-            click.secho("ChipWhisperer not installed, targets require it.", fg="red", err=True)
-            raise click.Abort
-        from pyecsca.sca.target import SimpleSerialTarget
-        import chipwhisperer as cw
-        from chipwhisperer.capture.targets.simpleserial_readers.cwlite import \
-            SimpleSerial_ChipWhispererLite
-        ser = SimpleSerial_ChipWhispererLite()
-        scope = cw.scope()
-        scope.default_setup()
-        ctx.obj["target"] = SimpleSerialTarget(ser, scope)
+        ctx.obj["target"] = DeviceTarget(model, coords, platform)
     else:
-        if binary is None or not path.isfile(binary):
+        if fw is None or not path.isfile(fw):
             click.secho("Binary is required if the target is the host.", fg="red", err=True)
             raise click.Abort
-        ctx.obj["target"] = BinaryTarget(binary, model, coords)
+        ctx.obj["target"] = HostTarget(model, coords, binary=fw)
 
 
 def get_curve(ctx: click.Context, param, value: Optional[str]) -> DomainParameters:
@@ -294,12 +266,16 @@ def get_curve(ctx: click.Context, param, value: Optional[str]) -> DomainParamete
 
 
 @main.command("gen")
+@click.option("--timeout", type=int, default=15000)
 @click.argument("curve", required=True, callback=get_curve)
 @click.pass_context
 @public
-def generate(ctx: click.Context, curve):
+def generate(ctx: click.Context, timeout, curve):
     ctx.ensure_object(dict)
     target: ImplTarget = ctx.obj["target"]
+    if isinstance(target, Flashable):
+        target.flash(ctx.obj["fw"])
+    target.timeout = timeout
     target.connect()
     target.set_params(curve)
     click.echo(target.generate())

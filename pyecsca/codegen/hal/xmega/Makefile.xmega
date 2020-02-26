@@ -8,6 +8,7 @@ CFLAGS += -fpack-struct
 CC = avr-gcc
 OBJCOPY = avr-objcopy
 OBJDUMP = avr-objdump
+STRIP = avr-strip
 SIZE = avr-size
 AR = avr-ar rcs
 NM = avr-nm
