@@ -76,7 +76,7 @@ void init_uart(void)
   HAL_GPIO_Init(GPIOA, &GpioInit);
 
   UartHandle.Instance        = USART1;
-  UartHandle.Init.BaudRate   = 38400;
+  UartHandle.Init.BaudRate   = 115200;
   UartHandle.Init.WordLength = UART_WORDLENGTH_8B;
   UartHandle.Init.StopBits   = UART_STOPBITS_1;
   UartHandle.Init.Parity     = UART_PARITY_NONE;
@@ -122,7 +122,7 @@ void putch(char c)
   uint8_t d  = c;
   HAL_UART_Transmit(&UartHandle,  &d, 1, 5000);
 }
-#if (PLATFORM==CWLITEARM)
+#if (PLATFORM==CWLITEARM || PLATFORM==CW308_STM32F3)
 void change_err_led(int x)
 {
     if (x)

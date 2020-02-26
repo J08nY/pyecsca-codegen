@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
+import re
 from binascii import hexlify, unhexlify
 from os import path
-from time import time, sleep
 from typing import Mapping, Union, Optional, Tuple
 
 import chipwhisperer as cw
@@ -178,7 +178,8 @@ class ImplTarget(SimpleSerialTarget):
         resp = self.send_cmd(SMessage.from_raw(cmd_scalar_mult(scalar)), self.timeout)
         result = resp["w"]
         plen = ((self.params.curve.prime.bit_length() + 7) // 8) * 2
-        params = {var: Mod(int(result.data[i * plen:(i + 1) * plen], 16), self.params.curve.prime) for
+        params = {var: Mod(int(result.data[i * plen:(i + 1) * plen], 16), self.params.curve.prime)
+                  for
                   i, var in enumerate(self.coords.variables)}
         return Point(self.coords, **params)
 
@@ -206,7 +207,7 @@ class ImplTarget(SimpleSerialTarget):
 @public
 class DeviceTarget(ImplTarget, ChipWhispererTarget):
 
-    def __init__(self, model: CurveModel, coords: CoordinateModel, platform: Platform):
+    def __init__(self, model: CurveModel, coords: CoordinateModel, platform: Platform, **kwargs):
         scope = cw.scope()
         scope.default_setup()
         target = SimpleSerial()
@@ -216,7 +217,8 @@ class DeviceTarget(ImplTarget, ChipWhispererTarget):
             programmer = XMEGAProgrammer
         else:
             raise ValueError
-        super().__init__(model, coords, target=target, scope=scope, programmer=programmer)
+        super().__init__(model, coords, target=target, scope=scope, programmer=programmer, **kwargs)
+
 
 @public
 class HostTarget(ImplTarget, BinaryTarget):
@@ -262,6 +264,7 @@ def get_curve(ctx: click.Context, param, value: Optional[str]) -> DomainParamete
     ctx.ensure_object(dict)
     category, name = value.split("/")
     curve = get_params(category, name, ctx.obj["coords"].name)
+    ctx.obj["params"] = curve
     return curve
 
 
@@ -271,6 +274,7 @@ def get_curve(ctx: click.Context, param, value: Optional[str]) -> DomainParamete
 @click.pass_context
 @public
 def generate(ctx: click.Context, timeout, curve):
+    """Generate a keypair on a curve."""
     ctx.ensure_object(dict)
     target: ImplTarget = ctx.obj["target"]
     if isinstance(target, Flashable):
@@ -282,17 +286,62 @@ def generate(ctx: click.Context, timeout, curve):
     target.disconnect()
 
 
+def get_pubkey(ctx: click.Context, param, value: Optional[str]) -> Point:
+    if value is None:
+        return None
+    ctx.ensure_object(dict)
+    curve: DomainParameters = ctx.obj["params"]
+    if re.match("04([0-9a-fA-F]{2})+", value):
+        value = value[2:]
+        plen = len(value) // 2
+        x = int(value[:plen], 16)
+        y = int(value[plen:], 16)
+    elif re.match("[0-9]+,[0-9]+", value):
+        x, y = value.split(",")
+        x = int(x)
+        y = int(y)
+    else:
+        raise click.BadParameter("Couldn't parse pubkey: {}.".format(value))
+    x = Mod(x, curve.curve.prime)
+    y = Mod(y, curve.curve.prime)
+    return Point(AffineCoordinateModel(curve.curve.model), x=x, y=y)
+
+
 @main.command("ecdh")
+@click.option("--timeout", type=int, default=15000)
+@click.argument("curve", required=True, callback=get_curve)
+@click.argument("pubkey", required=True, callback=get_pubkey)
 @click.pass_context
 @public
-def ecdh(ctx: click.Context):
+def ecdh(ctx: click.Context, timeout, curve, pubkey):
+    """Perform ECDH with a given public key."""
+    ctx.ensure_object(dict)
+    target: ImplTarget = ctx.obj["target"]
+    if isinstance(target, Flashable):
+        target.flash(ctx.obj["fw"])
+    target.timeout = timeout
+    target.connect()
+    target.set_params(curve)
+    target.generate()
+    click.echo(hexlify(target.ecdh(pubkey)))
+    target.disconnect()
+
+
+@main.command("ecdsa-sign")
+@click.option("--timeout", type=int, default=15000)
+@click.argument("curve", required=True, callback=get_curve)
+@click.pass_context
+@public
+def ecdsa_sign(ctx: click.Context, timeout, curve):
     ctx.ensure_object(dict)
 
 
-@main.command("ecdsa")
+@main.command("ecdsa-verify")
+@click.option("--timeout", type=int, default=15000)
+@click.argument("curve", required=True, callback=get_curve)
 @click.pass_context
 @public
-def ecdsa(ctx: click.Context):
+def ecdsa_sign(ctx: click.Context, timeout, curve):
     ctx.ensure_object(dict)
 
 
