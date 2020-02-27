@@ -28,6 +28,7 @@ setup(
         python_requires='>=3.8',
         install_requires=[
             "pyecsca",
+            "chipwhisperer",
             "numpy",
             "scipy",
             "atpublic",
@@ -38,8 +39,7 @@ setup(
             "Click"
         ],
         extras_require={
-            "chipshiwperer": ["chipwhisperer"],
-            "typecheck": ["mypy"],
+            "dev": ["mypy", "flake8"],
             "test": ["nose2", "parameterized","green", "coverage"]
         },
         entry_points="""

@@ -12,17 +12,15 @@ addons:
 install:
   - pip install codecov
   - mkdir pyecsca/codegen/tommath
-  - cd ext/libtommath/
-  - make
-  - cp libtommath.a ../../pyecsca/codegen/tommath/libtommath-HOST.a
-  - cp tommath.h ../../pyecsca/codegen/tommath/tommath.h
-  - cd ../
+  - cd ext/
+  - make host
+  - cp libtommath/tommath.h ../pyecsca/codegen/tommath/tommath.h
   - git clone https://github.com/J08nY/pyecsca
-  - cd pyecsca
+  - cd pyecsca/
   - git submodule update --init --recursive
-  - pip install -e .
+  - pip install -e ".[chipwhisperer]"
   - cd ../..
-  - pip install -e ".[test, typecheck]"
+  - pip install -e ".[test, dev]"
 
 script:
   - make -i typecheck
