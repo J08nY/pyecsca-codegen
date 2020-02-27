@@ -32,10 +32,8 @@
 #define getch input_ch_0
 #define flush()
 
-#if PLATFORM == CW303
 #define led_error(a) if (a) {PORTA.OUTCLR = PIN6_bm;} else {PORTA.OUTSET = PIN6_bm;}
 #define led_ok(a) if (a) {PORTA.OUTCLR = PIN5_bm;} else {PORTA.OUTSET = PIN5_bm;}
-#endif
 
 void HW_AES128_Init(void);
 void HW_AES128_LoadKey(uint8_t * key);

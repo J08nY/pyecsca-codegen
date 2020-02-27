@@ -77,3 +77,29 @@ class ClientTests(TestCase):
                                     join(tmpdir, "pyecsca-codegen-HOST.elf"),
                                     "shortw", "projective", "gen", "secg/secp128r1"])
             self.assertEqual(result.exit_code, 0)
+
+
+    def test_ecdh(self):
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            runner.invoke(build_impl,
+                          ["--platform", "HOST", "shortw", "projective",
+                           "add-1998-cmo", "dbl-1998-cmo", "z", "ltr(complete=False)", "."])
+            result = runner.invoke(main,
+                                   ["--platform", "HOST", "--fw",
+                                    join(tmpdir, "pyecsca-codegen-HOST.elf"),
+                                    "shortw", "projective", "ecdh", "secg/secp128r1",
+                                    "122835813094999453922649270086793500655,326514220558629293368386081113307347349"])
+            self.assertEqual(result.exit_code, 0)
+            result = runner.invoke(main,
+                                   ["--platform", "HOST", "--fw",
+                                    join(tmpdir, "pyecsca-codegen-HOST.elf"),
+                                    "shortw", "projective", "ecdh", "secg/secp128r1",
+                                    "045c69512b630addd5b6d347b7bce517eff5a459f98f015c6906ccfed3cf0bf995"])
+            self.assertEqual(result.exit_code, 0)
+            result = runner.invoke(main,
+                                   ["--platform", "HOST", "--fw",
+                                    join(tmpdir, "pyecsca-codegen-HOST.elf"),
+                                    "shortw", "projective", "ecdh", "secg/secp128r1",
+                                    "something"])
+            self.assertEqual(result.exit_code, 2)

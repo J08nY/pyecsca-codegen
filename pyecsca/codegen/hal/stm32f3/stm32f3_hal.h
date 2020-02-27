@@ -1,6 +1,7 @@
 #ifndef STM32F3_HAL_H
 #define STM32F3_HAL_H
 #include <stdint.h>
+#include <stdbool.h>
 
 //You probably don't need this from rest of code
 //#include "stm32f4_hal_lowlevel.h"
@@ -28,14 +29,10 @@ char getch(void);
 
 void trigger_setup(void);
 void trigger_low(void);
+bool trigger_status(void);
 void trigger_high(void);
 
-
-#if (PLATFORM==CWLITEARM)
-void change_err_led(int x);
-void change_ok_led(int x);
-#define led_error(X) (change_err_led(X))
-#define led_ok(X) (change_ok_led(X))
-#endif
+void led_error(unsigned int x);
+void led_ok(unsigned int x);
 
 #endif // STM32F3_HAL_H

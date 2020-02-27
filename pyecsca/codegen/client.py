@@ -203,9 +203,13 @@ class ImplTarget(SimpleSerialTarget):
         model, coords = unhexlify(resp.data).decode().split(",")
         return model, coords
 
+    def disconnect(self):
+        self.write(b"x\n")
+        super().disconnect()
+
 
 @public
-class DeviceTarget(ImplTarget, ChipWhispererTarget):
+class DeviceTarget(ImplTarget, ChipWhispererTarget):  # pragma: no cover
 
     def __init__(self, model: CurveModel, coords: CoordinateModel, platform: Platform, **kwargs):
         scope = cw.scope()
@@ -291,15 +295,15 @@ def get_pubkey(ctx: click.Context, param, value: Optional[str]) -> Point:
         return None
     ctx.ensure_object(dict)
     curve: DomainParameters = ctx.obj["params"]
-    if re.match("04([0-9a-fA-F]{2})+", value):
+    if re.match("^04([0-9a-fA-F]{2})+$", value):
         value = value[2:]
         plen = len(value) // 2
         x = int(value[:plen], 16)
         y = int(value[plen:], 16)
-    elif re.match("[0-9]+,[0-9]+", value):
-        x, y = value.split(",")
-        x = int(x)
-        y = int(y)
+    elif re.match("^[0-9]+,[0-9]+$", value):
+        xs, ys = value.split(",")
+        x = int(xs)
+        y = int(ys)
     else:
         raise click.BadParameter("Couldn't parse pubkey: {}.".format(value))
     x = Mod(x, curve.curve.prime)
@@ -334,6 +338,7 @@ def ecdh(ctx: click.Context, timeout, curve, pubkey):
 @public
 def ecdsa_sign(ctx: click.Context, timeout, curve):
     ctx.ensure_object(dict)
+    # TODO
 
 
 @main.command("ecdsa-verify")
@@ -341,8 +346,9 @@ def ecdsa_sign(ctx: click.Context, timeout, curve):
 @click.argument("curve", required=True, callback=get_curve)
 @click.pass_context
 @public
-def ecdsa_sign(ctx: click.Context, timeout, curve):
+def ecdsa_verify(ctx: click.Context, timeout, curve):
     ctx.ensure_object(dict)
+    # TODO
 
 
 if __name__ == "__main__":

@@ -78,7 +78,7 @@ def get_multiplier(ctx: click.Context, param, value: Optional[str]) -> Optional[
 @public
 def main():
     """
-    A tool for building, querying and flashing ECC implementations on devices.
+    A tool for building ECC implementations on devices.
     """
     pass
 
@@ -227,40 +227,6 @@ def list_impl(model: Optional[CurveModel], coords: Optional[CoordinateModel],
         click.echo(click.wrap_text(
                 "Scalar multplier:\n\t" + ", ".join(map(lambda m: m["name"][-1], MULTIPLIERS)),
                 subsequent_indent="\t"))
-
-
-@main.command("flash")
-@click.option("--platform", envvar="PLATFORM", required=True,
-              type=click.Choice(Platform.names()),
-              callback=wrap_enum(Platform),
-              help="The platform to flash.")
-@click.argument("dir")
-@public
-def flash_impl(platform, dir):  # pragma: no cover
-    """This command flashes a chip through the ChipWhisperer framework with the built implementation.
-
-    \b
-    DIR: The directory containing the built implementation (output directory of the build command).
-    """
-    try:
-        import chipwhisperer as cw
-    except ImportError:
-        click.secho("ChipWhisperer not installed, flashing requires it.", fg="red", err=True)
-        raise click.Abort
-    if platform in (Platform.STM32F0, Platform.STM32F3):
-        prog = cw.programmers.STM32FProgrammer
-    elif platform == Platform.XMEGA:
-        prog = cw.programmers.XMEGAProgrammer
-    else:
-        click.secho(
-                "Flashing the HOST is not required, just run the ELF and communicate with it via the standard IO.",
-                fg="red", err=True)
-        raise click.Abort
-    fw_path = path.join(dir, "pyecsca-codegen-{}.hex".format(platform))
-    scope = cw.scope()
-    scope.default_setup()
-    cw.program_target(scope, prog, fw_path)
-
 
 if __name__ == "__main__":
     main(obj={})

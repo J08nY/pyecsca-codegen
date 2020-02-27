@@ -456,7 +456,9 @@ int main(void) {
     {%- endif %}
     simpleserial_addcmd('d', MAX_SS_LEN, cmd_debug);
 
+	led_ok(1);
     while(simpleserial_get());
+    led_ok(0);
 
     bn_clear(&privkey);
     curve_free(curve);

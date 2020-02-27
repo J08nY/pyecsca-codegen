@@ -47,10 +47,6 @@ void platform_init(void)
      HAL_RCC_ClockConfig(&RCC_ClkInitStruct, flash_latency);
   #endif
 
-
-
-
-#if (PLATFORM==CWLITEARM)
   __HAL_RCC_GPIOC_CLK_ENABLE();
   GPIO_InitTypeDef GpioInit;
   GpioInit.Pin       = GPIO_PIN_13 | GPIO_PIN_14;
@@ -59,9 +55,8 @@ void platform_init(void)
   GpioInit.Speed     = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOC, &GpioInit);
 
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, SET);
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, SET);
-#endif
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, RESET);
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, RESET);
 }
 
 void init_uart(void)
@@ -86,6 +81,8 @@ void init_uart(void)
   HAL_UART_Init(&UartHandle);
 }
 
+static bool trig;
+
 void trigger_setup(void)
 {
   __HAL_RCC_GPIOA_CLK_ENABLE();
@@ -98,15 +95,23 @@ void trigger_setup(void)
   HAL_GPIO_Init(GPIOA, &GpioInit);
 
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, RESET);
+  trig = false;
 }
 
 void trigger_high(void)
 {
+  trig = true;
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, SET);
+}
+
+bool trigger_status(void)
+{
+  return trig;
 }
 
 void trigger_low(void)
 {
+  trig = false;
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, RESET);
 }
 
@@ -122,28 +127,19 @@ void putch(char c)
   uint8_t d  = c;
   HAL_UART_Transmit(&UartHandle,  &d, 1, 5000);
 }
-#if (PLATFORM==CWLITEARM || PLATFORM==CW308_STM32F3)
-void change_err_led(int x)
+
+void led_error(unsigned int x)
 {
-    if (x)
+    if (!x)
          HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, RESET);
     else
          HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, SET);
 }
 
-void change_ok_led(int x)
+void led_ok(unsigned int x)
 {
-     if (x)
+     if (!x)
           HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, RESET);
      else
           HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, SET);
 }
-#else
-void change_err_led(int x)
-{
-}
-
-void change_ok_led(int x)
-{
-}
-#endif //PLATFORM==CWLITEARM

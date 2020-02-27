@@ -93,6 +93,9 @@ int simpleserial_get(void)
 	if (ci == -1)
 		return 0;
 	char c = (char) ci;
+	if (c == 'x') {
+		return 0;
+	}
 
 	int cmd;
 	for(cmd = 0; cmd < num_commands; cmd++)

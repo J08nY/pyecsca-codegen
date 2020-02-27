@@ -27,8 +27,7 @@ void platform_init(void)
      RCC_ClkInitStruct.SYSCLKSource   = RCC_SYSCLKSOURCE_HSI;
      RCC_ClkInitStruct.AHBCLKDivider  = RCC_SYSCLK_DIV1;
      RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-     uint32_t flash_latency = 0;
-     HAL_RCC_ClockConfig(&RCC_ClkInitStruct, flash_latency);
+     HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0);
 #else
 	RCC_OscInitTypeDef RCC_OscInitStruct;
 	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE | RCC_OSCILLATORTYPE_HSI;
@@ -44,6 +43,17 @@ void platform_init(void)
 	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
 	HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0);
   #endif
+
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+	GPIO_InitTypeDef GpioInit;
+	GpioInit.Pin       = GPIO_PIN_13 | GPIO_PIN_14;
+	GpioInit.Mode      = GPIO_MODE_OUTPUT_PP;
+	GpioInit.Pull      = GPIO_NOPULL;
+	GpioInit.Speed     = GPIO_SPEED_FREQ_HIGH;
+	HAL_GPIO_Init(GPIOC, &GpioInit);
+
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, RESET);
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, RESET);
 }
 
 void init_uart(void)
@@ -69,6 +79,8 @@ void init_uart(void)
 	HAL_UART_Init(&UartHandle);
 }
 
+static bool trig;
+
 void trigger_setup(void)
 {
 	__HAL_RCC_GPIOA_CLK_ENABLE();
@@ -81,15 +93,23 @@ void trigger_setup(void)
 	HAL_GPIO_Init(GPIOA, &GpioInit);
 	
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, RESET);
+	trig = false;
 }
 
 void trigger_high(void)
 {
+    trig = true;
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, SET);
+}
+
+bool trigger_status(void)
+{
+  return trig;
 }
 
 void trigger_low(void)
 {
+    trig = false;
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, RESET);
 }   
 
@@ -104,5 +124,21 @@ void putch(char c)
 {
 	uint8_t d  = c;
 	HAL_UART_Transmit(&UartHandle,  &d, 1, 5000);
+}
+
+void led_error(unsigned int x)
+{
+    if (!x)
+         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, RESET);
+    else
+         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, SET);
+}
+
+void led_ok(unsigned int x)
+{
+     if (!x)
+          HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, RESET);
+     else
+          HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, SET);
 }
 

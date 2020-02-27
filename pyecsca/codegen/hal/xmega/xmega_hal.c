@@ -34,9 +34,7 @@ void platform_init(void)
     
     //Turn off other sources besides external    
     OSC.CTRL = OSC_XOSCEN_bm;
-    
- #if PLATFORM == CW303
+
     PORTA.DIRSET = PIN5_bm | PIN6_bm;
     PORTA.OUTSET = PIN5_bm | PIN6_bm;
- #endif
 }

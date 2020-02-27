@@ -41,13 +41,4 @@ void platform_init(void);
     #error "Unsupported HAL Type"
 #endif
 
-#ifndef led_error
-#define led_error(a)
-#endif
-
-#ifndef led_ok
-#define led_ok(a)
-#endif
-
-
 #endif //HAL_H_

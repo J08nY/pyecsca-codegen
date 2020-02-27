@@ -12,4 +12,7 @@
 #define getch input_ch_0
 #define flush flush_ch_0
 
+#define led_error(X)
+#define led_ok(X)
+
 #endif //HOST_HAL_H_
