@@ -34,12 +34,14 @@ typedef struct {
 } wnaf_t;
 
 bn_err bn_init(bn_t *bn);
+#define bn_init_multi mp_init_multi
 bn_err bn_copy(const bn_t *from, bn_t *to);
 void bn_clear(bn_t *bn);
+#define bn_clear_multi mp_clear_multi
 
-int bn_from_bin(const uint8_t *data, size_t size, bn_t *out);
-int bn_from_hex(const char *data, bn_t *out);
-int bn_from_int(unsigned int value, bn_t *out);
+bn_err bn_from_bin(const uint8_t *data, size_t size, bn_t *out);
+bn_err bn_from_hex(const char *data, bn_t *out);
+bn_err bn_from_int(unsigned int value, bn_t *out);
 
 bn_err bn_to_binpad(const bn_t *one, uint8_t *data, size_t size);
 bn_err bn_to_bin(const bn_t *one, uint8_t *data);

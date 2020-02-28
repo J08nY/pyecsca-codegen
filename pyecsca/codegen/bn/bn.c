@@ -14,15 +14,15 @@ void bn_clear(bn_t *bn) {
 	mp_clear(bn);
 }
 
-int bn_from_bin(const uint8_t *data, size_t size, bn_t *out) {
+bn_err bn_from_bin(const uint8_t *data, size_t size, bn_t *out) {
 	return mp_from_ubin(out, data, size);
 }
 
-int bn_from_hex(const char *data, bn_t *out) {
+bn_err bn_from_hex(const char *data, bn_t *out) {
 	return mp_read_radix(out, data, 16);
 }
 
-int bn_from_int(unsigned int value, bn_t *out) {
+bn_err bn_from_int(unsigned int value, bn_t *out) {
 	if (sizeof(unsigned int) == 8) {
 		mp_set_u64(out, value);
 	} else {

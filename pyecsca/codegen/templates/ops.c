@@ -1,7 +1,8 @@
-{% macro render_full_allocs(allocations) -%}
+{% macro render_full_allocs(allocations, err_name="err") -%}
 	{%- for alloc in allocations %}
-		bn_t {{ alloc }}; bn_init(&{{ alloc }});
+		bn_t {{ alloc }};
 	{%- endfor %}
+	{{ err_name }} = bn_init_multi(&{{ allocations | join(", &") }}, NULL);
 {%- endmacro %}
 
 {% macro render_static_allocs(allocations) -%}
@@ -10,10 +11,8 @@
 	{%- endfor %}
 {%- endmacro %}
 
-{% macro render_init_allocs(allocations) -%}
-	{%- for alloc in allocations %}
-		bn_init(&{{ alloc }});
-	{%- endfor %}
+{% macro render_init_allocs(allocations, err_name="err") -%}
+	{{err_name}} = bn_init_multi(&{{ allocations | join(", &") }}, NULL);
 {%- endmacro %}
 
 {% macro render_initializations(initializations) -%}
@@ -35,17 +34,22 @@
 {%- endmacro %}
 
 {% macro render_frees(frees) -%}
-	{%- for free in frees %}
-		bn_clear(&{{ free }});
-	{%- endfor %}
+	{% if frees %}
+		bn_clear_multi(&{{ frees | join(", &") }}, NULL);
+	{%- endif %}
 {%- endmacro %}
 
 {% macro render_static_init(allocations, initializations, name) -%}
 	{{ render_static_allocs(allocations) }}
 
-	void point_{{ name }}_init(void) {
-		{{ render_init_allocs(allocations) }}
+	bool point_{{ name }}_init(void) {
+		bn_err err;
+		{{ render_init_allocs(allocations, "err") }}
+		if (err != BN_OKAY) {
+			return false;
+		}
 		{{ render_initializations(initializations) }}
+		return true;
 	}
 {%- endmacro %}
 
@@ -55,8 +59,9 @@
 	}
 {%- endmacro %}
 
-{% macro render_all(allocations, initializations, operations, returns, frees) -%}
-	{{ render_full_allocs(allocations) }}
+{% macro render_all(allocations, initializations, operations, returns, frees, err_name="err") -%}
+	bn_err {{err_name}};
+	{{ render_full_allocs(allocations, err_name) }}
 	{{ render_initializations(initializations) }}
 	{{ render_ops(operations) }}
 	{{ render_returns(returns) }}
