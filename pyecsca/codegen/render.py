@@ -175,6 +175,13 @@ def render_scalarmult_impl(scalarmult: ScalarMultiplier) -> str:
                                              BinaryNAFMultiplier=BinaryNAFMultiplier)
 
 
+def render_action() -> str:
+    return env.get_template("action.c").render()
+
+
+def render_rand() -> str:
+    return env.get_template("rand.c").render()
+
 def render_main(model: CurveModel, coords: CoordinateModel, keygen: bool, ecdh: bool,
                 ecdsa: bool) -> str:
     return env.get_template("main.c").render(model=model, coords=coords,
@@ -202,11 +209,12 @@ def render(config: DeviceConfiguration) -> Tuple[str, str, str]:
     """
     temp = tempfile.mkdtemp()
     symlinks = ["asn1", "bn", "hal", "hash", "mult", "prng", "simpleserial", "tommath", "fat.h",
-                "point.h", "curve.h", "mult.h", "formulas.h", "Makefile.inc"]
+                "rand.h", "point.h", "curve.h", "mult.h", "formulas.h", "action.h", "Makefile.inc"]
     for sym in symlinks:
         os.symlink(resource_filename("pyecsca.codegen", sym), path.join(temp, sym))
     gen_dir = path.join(temp, "gen")
     os.mkdir(gen_dir)
+
     save_render(temp, "Makefile",
                 render_makefile(config.platform, config.hash_type, config.mod_rand))
     save_render(temp, "main.c",
@@ -215,7 +223,10 @@ def render(config: DeviceConfiguration) -> Tuple[str, str, str]:
     save_render(gen_dir, "point.c", render_coords_impl(config.coords))
     save_render(gen_dir, "formulas.c", render_formulas_impl(config.formulas))
     for formula in config.formulas:
-        save_render(gen_dir, f"formula_{formula.shortname}.c", render_formula_impl(formula, config.scalarmult.short_circuit))
+        save_render(gen_dir, f"formula_{formula.shortname}.c",
+                    render_formula_impl(formula, config.scalarmult.short_circuit))
+    save_render(gen_dir, "action.c", render_action())
+    save_render(gen_dir, "rand.c", render_rand())
     save_render(gen_dir, "curve.c", render_curve_impl(config.model))
     save_render(gen_dir, "mult.c", render_scalarmult_impl(config.scalarmult))
     return temp, "pyecsca-codegen-{}.elf".format(

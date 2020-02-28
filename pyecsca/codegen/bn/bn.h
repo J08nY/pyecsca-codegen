@@ -50,12 +50,6 @@ size_t bn_to_bin_size(const bn_t *one);
 bn_err bn_rand_mod_sample(bn_t *out, const bn_t *mod);
 bn_err bn_rand_mod_reduce(bn_t *out, const bn_t *mod);
 
-#if MOD_RAND == MOD_RAND_SAMPLE
-#define bn_rand_mod bn_rand_mod_sample
-#elif MOD_RAND == MOD_RAND_REDUCE
-#define bn_rand_mod bn_rand_mod_reduce
-#endif
-
 bn_err bn_mod_add(const bn_t *one, const bn_t *other, const bn_t *mod, bn_t *out);
 bn_err bn_mod_sub(const bn_t *one, const bn_t *other, const bn_t *mod, bn_t *out);
 bn_err bn_mod_neg(const bn_t *one, const bn_t *mod, bn_t *out);

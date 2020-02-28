@@ -1,6 +1,8 @@
 #include "point.h"
+#include "action.h"
 #include <stdlib.h>
 {% import "ops.c" as ops %}
+{% from "action.c" import start_action, end_action %}
 
 point_t *point_new(void) {
 	point_t *result = malloc(sizeof(point_t));
@@ -75,6 +77,7 @@ bool point_equals_affine(const point_t *one, const point_t *other, const curve_t
 }
 
 void point_to_affine(const point_t *point, const curve_t *curve, bn_t *out_x, bn_t *out_y) {
+	{{ start_action("coord_map") }}
 	{{ ops.render_all(allocations, initializations, operations, returns, frees, "err") }}
 	if (err != BN_OKAY) {
 		return;
@@ -92,9 +95,11 @@ void point_to_affine(const point_t *point, const curve_t *curve, bn_t *out_x, bn
 	{%- for free in to_affine_frees %}
 	bn_clear(&{{ free }});
 	{%- endfor %}
+	{{ end_action("coord_map") }}
 }
 
 void point_from_affine(bn_t *x, bn_t *y, const curve_t *curve, point_t *out) {
+	{{ start_action("coord_map") }}
   	{# XXX: This just works for the stuff currently in EFD. #}
 	{%- for variable in variables %}
 		{%- if variable in ("X", "Y") %}
@@ -107,4 +112,5 @@ void point_from_affine(bn_t *x, bn_t *y, const curve_t *curve, point_t *out) {
 	bn_mod_mul(x, y, &curve->p, &out->T);
 		{%- endif %}
 	{%- endfor %}
+	{{ end_action("coord_map") }}
 }

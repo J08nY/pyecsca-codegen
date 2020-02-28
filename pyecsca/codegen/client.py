@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import re
 from binascii import hexlify, unhexlify
+from enum import IntFlag
 from os import path
 from typing import Mapping, Union, Optional, Tuple
 
@@ -19,6 +20,23 @@ from pyecsca.sca.target import (SimpleSerialTarget, ChipWhispererTarget, BinaryT
                                 SimpleSerialMessage as SMessage)
 
 from .common import wrap_enum, Platform, get_model, get_coords
+
+
+class Triggers(IntFlag):
+    add = 1 << 0
+    dadd = 1 << 1
+    dbl = 1 << 2
+    ladd = 1 << 3
+    neg = 1 << 4
+    scl = 1 << 5
+    tpl = 1 << 6
+    mult = 1 << 7
+    keygen = 1 << 8
+    ecdh = 1 << 9
+    ecdsa_sign = 1 << 10
+    ecdsa_verify = 1 << 11
+    coord_map = 1 << 12
+    random_mod = 1 << 13
 
 
 def encode_scalar(val: Union[int, Mod]) -> bytes:
@@ -120,6 +138,12 @@ def cmd_ecdsa_verify(data: bytes, sig: bytes) -> str:
 
 
 @public
+def cmd_set_trigger(actions: Triggers) -> str:
+    vector_bytes = actions.to_bytes(4, "little")
+    return "t" + hexlify(vector_bytes)
+
+
+@public
 def cmd_debug() -> str:
     return "d"
 
@@ -131,6 +155,7 @@ class ImplTarget(SimpleSerialTarget):
     params: Optional[DomainParameters]
     privkey: Optional[int]
     pubkey: Optional[Point]
+    trigger: Optional[Triggers]
     timeout: int
 
     def __init__(self, model: CurveModel, coords: CoordinateModel, **kwargs):
@@ -145,6 +170,7 @@ class ImplTarget(SimpleSerialTarget):
         self.params = None
         self.privkey = None
         self.pubkey = None
+        self.trigger = None
 
     def init_prng(self, seed: bytes) -> None:
         self.send_cmd(SMessage.from_raw(cmd_init_prng(seed)), self.timeout)
@@ -202,6 +228,10 @@ class ImplTarget(SimpleSerialTarget):
         resp = self.send_cmd(SMessage.from_raw(cmd_debug()), self.timeout)["d"]
         model, coords = unhexlify(resp.data).decode().split(",")
         return model, coords
+
+    def set_trigger(self, actions: Triggers) -> None:
+        self.send_cmd(SMessage.from_raw(cmd_set_trigger(actions)), self.timeout)
+        self.trigger = actions
 
     def disconnect(self):
         self.write(b"x\n")

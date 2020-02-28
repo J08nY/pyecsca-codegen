@@ -10,10 +10,15 @@
 #include "curve.h"
 #include "fat.h"
 #include "formulas.h"
+#include "action.h"
+#include "rand.h"
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
+
+{% from "action.c" import start_action, end_action %}
 
 static point_t *pubkey;
 static bn_t privkey;
@@ -106,7 +111,7 @@ static uint8_t cmd_set_params(uint8_t *data, uint16_t len) {
 
 static uint8_t cmd_generate(uint8_t *data, uint16_t len) {
 	// generate a keypair, export privkey and affine pubkey
-	trigger_high();
+	{{ start_action("keygen") }}
 	bn_rand_mod(&privkey, &curve->n);
 	size_t priv_size = bn_to_bin_size(&privkey);
 	size_t coord_size = bn_to_bin_size(&curve->p);
@@ -126,7 +131,7 @@ static uint8_t cmd_generate(uint8_t *data, uint16_t len) {
 	bn_to_binpad(&y, pub + coord_size, coord_size);
 	bn_clear(&x);
 	bn_clear(&y);
-	trigger_low();
+	{{ end_action("keygen") }}
 
 	simpleserial_put('s', priv_size, priv);
 	simpleserial_put('w', coord_size * 2, pub);
@@ -189,7 +194,6 @@ static void parse_scalar_mult(const char *path, const uint8_t *data, size_t len,
 
 static uint8_t cmd_scalar_mult(uint8_t *data, uint16_t len) {
 	// perform base point scalar mult with supplied scalar.
-	trigger_high();
 	bn_t scalar; bn_init(&scalar);
 	parse_data(data, len, "", parse_scalar_mult, (void *) &scalar);
 	size_t coord_size = bn_to_bin_size(&curve->p);
@@ -204,7 +208,6 @@ static uint8_t cmd_scalar_mult(uint8_t *data, uint16_t len) {
 	{%- endfor %}
 	bn_clear(&scalar);
 	point_free(result);
-	trigger_low();
 
 	simpleserial_put('w', coord_size * {{ curve_variables | length }}, res);
 	return 0;
@@ -228,7 +231,7 @@ static void parse_ecdh(const char *path, const uint8_t *data, size_t len, void *
 
 static uint8_t cmd_ecdh(uint8_t *data, uint16_t len) {
 	//perform ECDH with provided point (and current privkey), output shared secret
-	trigger_high();
+	{{ start_action("ecdh") }}
 	point_t *other = point_new();
 	fat_t affine[2] = {fat_empty, fat_empty};
 	parse_data(data, len, "", parse_ecdh, (void *) affine);
@@ -267,7 +270,7 @@ static uint8_t cmd_ecdh(uint8_t *data, uint16_t len) {
 	bn_clear(&y);
 	point_free(result);
 	point_free(other);
-	trigger_low();
+	{{ end_action("ecdh") }}
 
 	simpleserial_put('r', h_size, h_out);
 	return 0;
@@ -295,6 +298,7 @@ static void parse_ecdsa_sig(const char *path, const uint8_t *data, size_t len, v
 
 static uint8_t cmd_ecdsa_sign(uint8_t *data, uint16_t len) {
 	//perform ECDSA signature on supplied data, output signature
+	{{ start_action("ecdsa_sign") }}
 	fat_t msg = fat_empty;
 	parse_data(data, len, "", parse_ecdsa_msg, (void *) &msg);
 
@@ -339,6 +343,7 @@ static uint8_t cmd_ecdsa_sign(uint8_t *data, uint16_t len) {
 
 	size_t result_len = 0;
 	uint8_t *result = asn1_der_encode(&r, &s, &result_len);
+	{{ end_action("ecdsa_sign") }}
 
 	simpleserial_put('s', result_len, result);
 	free(result);
@@ -352,6 +357,7 @@ static uint8_t cmd_ecdsa_sign(uint8_t *data, uint16_t len) {
 
 static uint8_t cmd_ecdsa_verify(uint8_t *data, uint16_t len) {
 	//perform ECDSA verification on supplied data and signature (and current pubkey), output status
+	{{ start_action("ecdsa_verify") }}
 	fat_t msg = fat_empty;
 	parse_data(data, len, "", parse_ecdsa_msg, (void *) &msg);
 	fat_t sig = fat_empty;
@@ -403,6 +409,7 @@ static uint8_t cmd_ecdsa_verify(uint8_t *data, uint16_t len) {
 
 	bool result = bn_eq(&orig_r, &x);
 	uint8_t res_data[1] = {(uint8_t) result};
+	{{ end_action("ecdsa_verify") }}
 
 	simpleserial_put('v', 1, res_data);
 	point_free(p1);
@@ -423,6 +430,13 @@ static uint8_t cmd_debug(uint8_t *data, uint16_t len) {
 	simpleserial_put('r', len, data);
 
 	simpleserial_put('d', debug_len, (uint8_t *) debug_string);
+	return 0;
+}
+
+static uint8_t cmd_set_trigger(uint8_t *data, uint16_t len) {
+	uint32_t vector = data[0] | data[1] << 8 | data[2] << 16 | data[3] << 24;
+	action_set(vector);
+
 	return 0;
 }
 
@@ -454,6 +468,7 @@ int main(void) {
     	simpleserial_addcmd('a', MAX_SS_LEN, cmd_ecdsa_sign);
     	simpleserial_addcmd('r', MAX_SS_LEN, cmd_ecdsa_verify);
     {%- endif %}
+    simpleserial_addcmd('t', MAX_SS_LEN, cmd_set_trigger);
     simpleserial_addcmd('d', MAX_SS_LEN, cmd_debug);
 
 	led_ok(1);
