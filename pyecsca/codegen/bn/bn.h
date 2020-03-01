@@ -4,6 +4,7 @@
 #include <tommath.h>
 
 #define bn_t mp_int
+#define bn_digit mp_digit
 #define bn_err mp_err
 #define bn_sign mp_sign
 
@@ -23,6 +24,16 @@
 #define BN_GT MP_GT /* greater than */
 
 typedef struct {
+	#if REDUCTION == RED_MONTGOMERY
+	bn_digit montgomery_digit;
+	bn_t montgomery_renorm;
+	bn_t montgomery_renorm_sqr;
+	#elif REDUCTION == RED_BARRETT
+	bn_t barret;
+	#endif
+} red_t;
+
+typedef struct {
 	char name;
 	bn_t value;
 } named_bn_t;
@@ -33,10 +44,10 @@ typedef struct {
 	int w;
 } wnaf_t;
 
-bn_err bn_init(bn_t *bn);
+bn_err  bn_init(bn_t *bn);
 #define bn_init_multi mp_init_multi
-bn_err bn_copy(const bn_t *from, bn_t *to);
-void bn_clear(bn_t *bn);
+bn_err  bn_copy(const bn_t *from, bn_t *to);
+void    bn_clear(bn_t *bn);
 #define bn_clear_multi mp_clear_multi
 
 bn_err bn_from_bin(const uint8_t *data, size_t size, bn_t *out);
@@ -60,16 +71,31 @@ bn_err bn_mod_inv(const bn_t *one, const bn_t *mod, bn_t *out);
 bn_err bn_mod_pow(const bn_t *one, const bn_t *exp, const bn_t *mod, bn_t *out);
 bn_err bn_mod(const bn_t *one, const bn_t *mod, bn_t *out);
 
+bn_err bn_red_init(red_t *out);
+bn_err bn_red_setup(const bn_t *mod, red_t *out);
+bn_err bn_red_encode(bn_t *one, const bn_t *mod, const red_t *red);
+bn_err bn_red_decode(bn_t *one, const bn_t *mod, const red_t *red);
+bn_err bn_red_add(const bn_t *one, const bn_t *other, const bn_t *mod, const red_t *red, bn_t *out);
+bn_err bn_red_sub(const bn_t *one, const bn_t *other, const bn_t *mod, const red_t *red, bn_t *out);
+bn_err bn_red_neg(const bn_t *one, const bn_t *mod, const red_t *red, bn_t *out);
+bn_err bn_red_mul(const bn_t *one, const bn_t *other, const bn_t *mod, const red_t *red, bn_t *out);
+bn_err bn_red_sqr(const bn_t *one, const bn_t *mod, const red_t *red, bn_t *out);
+bn_err bn_red_inv(const bn_t *one, const bn_t *mod, const red_t *red, bn_t *out);
+bn_err bn_red_div(const bn_t *one, const bn_t *other, const bn_t *mod, const red_t *red, bn_t *out);
+bn_err bn_red_pow(const bn_t *base, const bn_t *exp, const bn_t *mod, const red_t *red, bn_t *out);
+bn_err bn_red_reduce(const bn_t *mod, const red_t *red, bn_t *what);
+void   bn_red_clear(red_t *out);
+
 bn_err bn_lsh(const bn_t *one, int amount, bn_t *out);
 bn_err bn_rsh(const bn_t *one, int amount, bn_t *out);
 
-bool bn_eq(const bn_t *one, const bn_t *other);
-bool bn_is_0(const bn_t *one);
-bool bn_is_1(const bn_t *one);
+bool    bn_eq(const bn_t *one, const bn_t *other);
+bool    bn_is_0(const bn_t *one);
+bool    bn_is_1(const bn_t *one);
 bn_sign bn_get_sign(const bn_t *one);
 
-int bn_get_bit(const bn_t *bn, int which);
-int bn_bit_length(const bn_t *bn);
+int     bn_get_bit(const bn_t *bn, int which);
+int     bn_bit_length(const bn_t *bn);
 wnaf_t *bn_wnaf(const bn_t *bn, int w);
 wnaf_t *bn_bnaf(const bn_t *bn);
 

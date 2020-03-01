@@ -129,6 +129,7 @@ CFLAGS += -funsigned-char
 CFLAGS += -funsigned-bitfields
 # Note: -fpack-struct is dangerous! This is only included in XMEGA/AVR HAL
 #CFLAGS += -fpack-struct
+CFLAGS += -flto
 CFLAGS += -fshort-enums
 CFLAGS += -Wall
 CFLAGS += -Wstrict-prototypes

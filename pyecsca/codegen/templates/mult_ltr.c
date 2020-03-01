@@ -1,10 +1,7 @@
 #include "mult.h"
 #include "point.h"
-#include "action.h"
-{% from "action.c" import start_action, end_action %}
 
-void scalar_mult(bn_t *scalar, point_t *point, curve_t *curve, point_t *out) {
-	{{ start_action("mult") }}
+void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, point_t *out) {
 	{%- if scalarmult.complete %}
 		point_t *q = point_copy(point);
 		point_t *r = point_copy(curve->neutral);
@@ -39,5 +36,4 @@ void scalar_mult(bn_t *scalar, point_t *point, curve_t *curve, point_t *out) {
 	{%- if scalarmult.always %}
 		point_free(dummy);
 	{%- endif %}
-	{{ end_action("mult") }}
 }

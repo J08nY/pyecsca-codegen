@@ -120,21 +120,6 @@ int simpleserial_get(void)
 
 		ascii_buf[i] = c;
 	}
-//	uint8_t ik[4];
-//	ik[3] = (uint8_t) i & 0xff;
-//	ik[2] = (uint8_t) (i>>8) & 0xff;
-//	ik[1] = (uint8_t) (i>>16) & 0xff;
-//	ik[0] = (uint8_t) (i>>24) & 0xff;
-//	uint8_t ic[4];
-//	ic[3] = (uint8_t) c & 0xff;
-//	ic[2] = (uint8_t) (c>>8) & 0xff;
-//	ic[1] = (uint8_t) (c>>16) & 0xff;
-//	ic[0] = (uint8_t) (c>>24) & 0xff;
-//	if (commands[cmd].c == 'd') {
-//		simpleserial_put('o', 4, ik);
-//		simpleserial_put('c', 4, ic);
-//	}
-
 
 	// ASCII buffer is full: convert to bytes 
 	// Check for illegal characters here
@@ -143,7 +128,9 @@ int simpleserial_get(void)
 
 	// Callback
 	uint8_t ret[1];
+	trigger_high();
 	ret[0] = commands[cmd].fp(data_buf, i/2);
+	trigger_low();
 	
 	simpleserial_put('z', 1, ret);
 	return 1;

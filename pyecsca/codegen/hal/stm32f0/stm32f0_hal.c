@@ -107,6 +107,14 @@ bool trigger_status(void)
   return trig;
 }
 
+void trigger_flip(void) {
+	if (trig) {
+		trigger_low();
+	} else {
+		trigger_high();
+	}
+}
+
 void trigger_low(void)
 {
     trig = false;

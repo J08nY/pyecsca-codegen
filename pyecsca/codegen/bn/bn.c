@@ -135,6 +135,174 @@ bn_err bn_mod(const bn_t *one, const bn_t *mod, bn_t *out) {
 	return mp_mod(one, mod, out);
 }
 
+bn_err bn_red_init(red_t *out) {
+	#if REDUCTION == RED_MONTGOMERY
+		return bn_init(&out->montgomery_renorm);
+	#elif REDUCTION == RED_BARRETT
+		return bn_init(&out->barret);
+	#endif
+		return BN_OKAY;
+}
+
+bn_err bn_red_setup(const bn_t *mod, red_t *out) {
+	#if REDUCTION == RED_MONTGOMERY
+		bn_err err;
+		if ((err = mp_montgomery_setup(mod, &out->montgomery_digit)) != BN_OKAY) {
+			return err;
+		}
+		if ((err = mp_montgomery_calc_normalization(&out->montgomery_renorm, mod)) != BN_OKAY) {
+			return err;
+		}
+		return mp_sqrmod(&out->montgomery_renorm, mod, &out->montgomery_renorm_sqr);
+	#elif REDUCTION == RED_BARRETT
+		return mp_reduce_setup(mod, &out->barret);
+	#endif
+		return BN_OKAY;
+}
+
+bn_err bn_red_encode(bn_t *one, const bn_t *mod, const red_t *red) {
+	#if REDUCTION == RED_MONTGOMERY
+		return mp_mulmod(one, &red->montgomery_renorm, mod, one);
+	#else
+		return BN_OKAY;
+	#endif
+}
+
+bn_err bn_red_decode(bn_t *one, const bn_t *mod, const red_t *red) {
+	#if REDUCTION == RED_MONTGOMERY
+		return mp_montgomery_reduce(one, mod, red->montgomery_digit);
+	#else
+		return BN_OKAY;
+	#endif
+}
+
+bn_err bn_red_add(const bn_t *one, const bn_t *other, const bn_t *mod, const red_t *red, bn_t *out) {
+	bn_err err;
+	if ((err = mp_add(one, other, out)) != BN_OKAY) {
+		return err;
+	}
+	if (mp_cmp(out, mod) == MP_GT) {
+		return mp_sub(out, mod, out);
+	} else {
+		return err;
+	}
+}
+
+bn_err bn_red_sub(const bn_t *one, const bn_t *other, const bn_t *mod, const red_t *red, bn_t *out) {
+	bn_err err;
+	if ((err = mp_sub(one, other, out)) != BN_OKAY) {
+		return err;
+	}
+	if (mp_cmp_d(out, 0) == MP_LT) {
+		return mp_add(out, mod, out);
+	}
+	if (mp_cmp(out, mod) == MP_GT) {
+		return mp_sub(out, mod, out);
+	}
+	return err;
+}
+
+bn_err bn_red_neg(const bn_t *one, const bn_t *mod, const red_t *red, bn_t *out) {
+	bn_err err;
+	if ((err = mp_neg(one, out)) != BN_OKAY) {
+		return err;
+	}
+	if (mp_cmp_d(out, 0) == MP_LT) {
+		return mp_add(out, mod, out);
+	}
+	return err;
+}
+
+bn_err bn_red_mul(const bn_t *one, const bn_t *other, const bn_t *mod, const red_t *red, bn_t *out) {
+	bn_err err;
+	if ((err = mp_mul(one, other, out)) != BN_OKAY) {
+		return err;
+	}
+	return bn_red_reduce(mod, red, out);
+}
+
+bn_err bn_red_sqr(const bn_t *one, const bn_t *mod, const red_t *red, bn_t *out) {
+	bn_err err;
+	if ((err = mp_sqr(one, out)) != BN_OKAY) {
+		return err;
+	}
+	return bn_red_reduce(mod, red, out);
+}
+
+bn_err bn_red_inv(const bn_t *one, const bn_t *mod, const red_t *red, bn_t *out) {
+	bn_err err;
+	if ((err = mp_invmod(one, mod, out)) != BN_OKAY) {
+		return err;
+	}
+	#if REDUCTION == RED_MONTGOMERY
+		return mp_mulmod(out, &red->montgomery_renorm_sqr, mod, out);
+	#else
+		return err;
+	#endif
+}
+
+bn_err bn_red_div(const bn_t *one, const bn_t *other, const bn_t *mod, const red_t *red, bn_t *out) {
+	bn_t inv;
+	bn_err err;
+	if ((err = mp_init(&inv)) != BN_OKAY) {
+		return err;
+	}
+	if ((err = mp_copy(other, &inv)) != BN_OKAY) {
+		goto out;
+	}
+	#if REDUCTION == RED_MONTGOMERY
+		if ((err = mp_montgomery_reduce(&inv, mod, red->montgomery_digit)) != BN_OKAY) {
+			goto out;
+		}
+	#endif
+	if ((err = mp_invmod(&inv, mod, &inv)) != BN_OKAY) {
+		goto out;
+	}
+	if ((err = mp_mulmod(one, &inv, mod, out)) != BN_OKAY) {
+		goto out;
+	}
+out:
+	mp_clear(&inv);
+	return err;
+}
+
+bn_err bn_red_pow(const bn_t *base, const bn_t *exp, const bn_t *mod, const red_t *red, bn_t *out) {
+	int blen = bn_bit_length(exp);
+	bn_t result;
+	bn_err err;
+	if ((err = bn_init(&result)) != BN_OKAY) {
+		return err;
+	}
+	if ((err = bn_copy(base, &result)) != BN_OKAY) {
+		bn_clear(&result);
+		return err;
+	}
+	for (int i = blen - 2; i > 0; --i) {
+		bn_red_sqr(&result, mod, red, &result);
+		if (bn_get_bit(exp, i)) {
+			bn_red_mul(&result, base, mod, red, &result);
+		}
+	}
+	return BN_OKAY;
+}
+
+bn_err bn_red_reduce(const bn_t *mod, const red_t *red, bn_t *what) {
+	#if REDUCTION == RED_MONTGOMERY
+		return mp_montgomery_reduce(what, mod, red->montgomery_digit);
+	#elif REDUCTION == RED_BARRETT
+		return mp_reduce(what, mod, red->barrett);
+	#endif
+		return mp_mod(what, mod, what);
+}
+
+void bn_red_clear(red_t *out) {
+	#if REDUCTION == RED_MONTGOMERY
+		bn_clear(&out->montgomery_renorm);
+	#elif REDUCTION == RED_BARRETT
+		bn_clear(&out->barret);
+	#endif
+}
+
 bn_err bn_lsh(const bn_t *one, int amount, bn_t *out) {
 	return mp_mul_2d(one, amount, out);
 }

@@ -1,10 +1,13 @@
 #ifndef HOST_HAL_H_
 #define HOST_HAL_H_
 
+#include <stdbool.h>
 #include "uart.h"
 
 #define trigger_setup()
 #define trigger_high()
+#define trigger_status() false
+#define trigger_flip()
 #define trigger_low()
 
 #define init_uart init_uart0

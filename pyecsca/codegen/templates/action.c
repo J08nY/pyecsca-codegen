@@ -69,13 +69,13 @@ uint32_t action_vector = 0;
 
 void action_start(uint32_t action) {
 	if (action_vector & action) {
-		trigger_high();
+		trigger_flip();
 	}
 }
 
 void action_end(uint32_t action) {
 	if (action_vector & action) {
-		trigger_low();
+		trigger_flip();
 	}
 }
 

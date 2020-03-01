@@ -10,6 +10,7 @@ char getch(void);
 void trigger_setup(void);
 void trigger_low(void);
 bool trigger_status(void);
+void trigger_flip(void);
 void trigger_high(void);
 
 void led_error(unsigned int status);

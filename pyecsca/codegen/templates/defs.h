@@ -13,10 +13,12 @@ typedef struct {
 
 typedef struct {
 	bn_t p;
+	red_t p_red;
     {%- for param in params %}
     bn_t {{ param }};
     {%- endfor %}
     bn_t n;
+    red_t n_red;
     bn_t h;
     point_t *generator;
     point_t *neutral;
