@@ -123,9 +123,10 @@ void point_from_affine(bn_t *x, bn_t *y, const curve_t *curve, point_t *out) {
 		{%- endif %}
 		{%- if variable == "Z" %}
 	bn_from_int(1, &out->Z);
+	bn_red_encode(&out->Z, &curve->p, &curve->p_red);
 		{%- endif %}
 		{%- if variable == "T" %}
-	bn_mod_mul(x, y, &curve->p, &out->T);
+	bn_red_mul(x, y, &curve->p, &out->T);
 		{%- endif %}
 	{%- endfor %}
 	{{ end_action("coord_map") }}

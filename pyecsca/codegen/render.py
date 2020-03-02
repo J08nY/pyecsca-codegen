@@ -27,21 +27,21 @@ env = Environment(
 env.globals["isinstance"] = isinstance
 
 
-def render_op(op: OpType, result: str, left: str, right: str, mod: str) -> Optional[str]:
+def render_op(op: OpType, result: str, left: str, right: str, mod: str, red: str) -> Optional[str]:
     if op == OpType.Add:
-        return "bn_mod_add(&{}, &{}, &{}, &{});".format(left, right, mod, result)
+        return "bn_red_add(&{}, &{}, &{}, &{}, &{});".format(left, right, mod, red, result)
     elif op == OpType.Sub:
-        return "bn_mod_sub(&{}, &{}, &{}, &{});".format(left, right, mod, result)
+        return "bn_red_sub(&{}, &{}, &{}, &{}, &{});".format(left, right, mod, red, result)
     elif op == OpType.Neg:
-        return "bn_mod_neg(&{}, &{}, &{});".format(right, mod, result)
+        return "bn_red_neg(&{}, &{}, &{}, &{});".format(right, mod, red, result)
     elif op == OpType.Mult:
-        return "bn_mod_mul(&{}, &{}, &{}, &{});".format(left, right, mod, result)
+        return "bn_red_mul(&{}, &{}, &{}, &{}, &{});".format(left, right, mod, red, result)
     elif op == OpType.Div or op == OpType.Inv:
-        return "bn_mod_div(&{}, &{}, &{}, &{});".format(left, right, mod, result)
+        return "bn_red_div(&{}, &{}, &{}, &{}, &{});".format(left, right, mod, red, result)
     elif op == OpType.Sqr:
-        return "bn_mod_sqr(&{}, &{}, &{});".format(left, mod, result)
+        return "bn_red_sqr(&{}, &{}, &{}, &{});".format(left, mod, red, result)
     elif op == OpType.Pow:
-        return "bn_mod_pow(&{}, &{}, &{}, &{});".format(left, right, mod, result)
+        return "bn_red_pow(&{}, &{}, &{}, &{}, &{});".format(left, right, mod, red, result)
     elif op == OpType.Id:
         return "bn_copy(&{}, &{});".format(left, result)
     else:

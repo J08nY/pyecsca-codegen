@@ -3,7 +3,7 @@
 {% import "ops.c" as ops %}
 {% from "action.c" import start_action, end_action %}
 
-{{ ops.render_static_init(allocations, initializations, formula.shortname) }}
+{{ ops.render_static_init(allocations, formula.shortname) }}
 
 {{ ops.render_static_clear(frees, formula.shortname) }}
 
@@ -19,6 +19,7 @@ void point_add(const point_t *one, const point_t *other, const curve_t *curve, p
 			return;
 		}
 	{%- endif %}
+	{{ ops.render_initializations(initializations) }}
 	{{ ops.render_ops(operations) }}
 	{{ ops.render_returns(returns) }}
 	{{ end_action("add") }}

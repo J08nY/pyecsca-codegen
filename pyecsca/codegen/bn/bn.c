@@ -139,7 +139,7 @@ bn_err bn_red_init(red_t *out) {
 	#if REDUCTION == RED_MONTGOMERY
 		return bn_init(&out->montgomery_renorm);
 	#elif REDUCTION == RED_BARRETT
-		return bn_init(&out->barret);
+		return bn_init(&out->barrett);
 	#endif
 		return BN_OKAY;
 }
@@ -155,7 +155,7 @@ bn_err bn_red_setup(const bn_t *mod, red_t *out) {
 		}
 		return mp_sqrmod(&out->montgomery_renorm, mod, &out->montgomery_renorm_sqr);
 	#elif REDUCTION == RED_BARRETT
-		return mp_reduce_setup(mod, &out->barret);
+		return mp_reduce_setup(&out->barrett, mod);
 	#endif
 		return BN_OKAY;
 }
@@ -277,12 +277,14 @@ bn_err bn_red_pow(const bn_t *base, const bn_t *exp, const bn_t *mod, const red_
 		bn_clear(&result);
 		return err;
 	}
-	for (int i = blen - 2; i > 0; --i) {
+	for (int i = blen - 2; i >= 0; --i) {
 		bn_red_sqr(&result, mod, red, &result);
 		if (bn_get_bit(exp, i)) {
 			bn_red_mul(&result, base, mod, red, &result);
 		}
 	}
+	bn_copy(&result, out);
+	bn_clear(&result);
 	return BN_OKAY;
 }
 
@@ -290,7 +292,7 @@ bn_err bn_red_reduce(const bn_t *mod, const red_t *red, bn_t *what) {
 	#if REDUCTION == RED_MONTGOMERY
 		return mp_montgomery_reduce(what, mod, red->montgomery_digit);
 	#elif REDUCTION == RED_BARRETT
-		return mp_reduce(what, mod, red->barrett);
+		return mp_reduce(what, mod, &red->barrett);
 	#endif
 		return mp_mod(what, mod, what);
 }
@@ -299,7 +301,7 @@ void bn_red_clear(red_t *out) {
 	#if REDUCTION == RED_MONTGOMERY
 		bn_clear(&out->montgomery_renorm);
 	#elif REDUCTION == RED_BARRETT
-		bn_clear(&out->barret);
+		bn_clear(&out->barrett);
 	#endif
 }
 

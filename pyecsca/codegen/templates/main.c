@@ -59,12 +59,17 @@ static uint8_t cmd_init_prng(uint8_t *data, uint16_t len) {
 }
 
 static void parse_set_params(const char *path, const uint8_t *data, size_t len, void *arg) {
-	{%- for param in curve_parameters + ["p", "n", "h"] %}
-	if (strcmp(path, "{{ param }}") == 0) {
-		bn_from_bin(data, len, &curve->{{ param }});
-		return;
+	if (strlen(path) == 1) {
+		switch (*path) {
+		{%- for param in curve_parameters + ["p", "n", "h"] %}
+			case '{{ param }}': bn_from_bin(data, len, &curve->{{ param }});
+			{% if param == "p" %}
+								bn_red_setup(&curve->{{ param }}, &curve->{{ param }}_red);
+			{%- endif %}
+								return;
+		{%- endfor %}
+		}
 	}
-	{%- endfor %}
 
 	fat_t *affine = (fat_t *) arg;
 	if (strcmp(path, "gx") == 0) {

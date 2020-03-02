@@ -27,15 +27,3 @@ void curve_free(curve_t *curve) {
 	}
 	free(curve);
 }
-
-void curve_set_param(curve_t *curve, char name, const bn_t *value) {
-	switch (name) {
-	{%- for param in params + ["p", "n", "h"] %}
-		case '{{ param }}': bn_copy(value, &curve->{{ param }});
-		{% if param == "p" %}
-							bn_red_setup(value, &curve->{{ param }}_red);
-		{%- endif %}
-							break;
-	{%- endfor %}
-	}
-}

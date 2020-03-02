@@ -18,12 +18,13 @@
 {% macro render_initializations(initializations) -%}
 	{%- for init, value in initializations.items() %}
 		bn_from_int({{ value }}, &{{ init }});
+		bn_red_encode(&{{ init }}, &curve->p, &curve->p_red);
 	{%- endfor %}
 {%- endmacro %}
 
 {% macro render_ops(operations) -%}
 	{%- for op, result, left, right in operations %}
-		{{ render_op(op, result, left, right, "curve->p")}}
+		{{ render_op(op, result, left, right, "curve->p", "curve->p_red")}}
 	{%- endfor %}
 {%- endmacro %}
 
@@ -39,7 +40,7 @@
 	{%- endif %}
 {%- endmacro %}
 
-{% macro render_static_init(allocations, initializations, name) -%}
+{% macro render_static_init(allocations, name) -%}
 	{{ render_static_allocs(allocations) }}
 
 	bool point_{{ name }}_init(void) {
@@ -48,7 +49,6 @@
 		if (err != BN_OKAY) {
 			return false;
 		}
-		{{ render_initializations(initializations) }}
 		return true;
 	}
 {%- endmacro %}

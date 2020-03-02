@@ -33,7 +33,7 @@ typedef struct {
 	bn_t montgomery_renorm;
 	bn_t montgomery_renorm_sqr;
 	#elif REDUCTION == RED_BARRETT
-	bn_t barret;
+	bn_t barrett;
 	#endif
 } red_t;
 

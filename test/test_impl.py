@@ -30,6 +30,7 @@ class ImplTests(TestCase):
         with runner.isolated_filesystem() as tmpdir:
             runner.invoke(build_impl,
                           ["--platform", "HOST",
+                           #"--red", "MONTGOMERY",
                            "--ecdsa" if ecdsa else "--no-ecdsa",
                            "--ecdh" if ecdh else "--no-ecdh",
                            params.curve.model.shortname, params.curve.coordinate_model.name,
