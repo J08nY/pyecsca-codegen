@@ -3,28 +3,20 @@ from unittest import TestCase
 from click.testing import CliRunner
 
 from pyecsca.codegen.builder import build_impl, list_impl
-
+from parameterized import parameterized
 
 class BuilderTests(TestCase):
 
-    def test_cli_build(self):
+    @parameterized.expand([
+        ("basic", ["--platform", "HOST", "shortw", "projective", "add-1998-cmo", "dbl-1998-cmo", "z", "ltr(complete=True)", "."]),
+        ("karatsuba", ["--platform", "HOST", "--mul", "KARATSUBA", "shortw", "projective", "add-1998-cmo", "dbl-1998-cmo", "z", "ltr(complete=True)", "."]),
+        ("strip", ["--platform", "HOST", "--strip", "--no-remove", "shortw", "projective", "add-1998-cmo", "dbl-1998-cmo", "z", "ltr(complete=True)", "."]),
+        ("montgom", ["--platform", "HOST", "--no-ecdsa", "montgom", "xz", "ladd-1987-m", "dbl-1987-m", "scale", "ldr()", "."])
+    ])
+    def test_cli_build(self, name, args):
         runner = CliRunner()
         with runner.isolated_filesystem():
-            result = runner.invoke(build_impl,
-                                   ["--platform", "HOST", "shortw", "projective",
-                                    "add-1998-cmo",
-                                    "dbl-1998-cmo", "z", "ltr(complete=True)", "."])
-            self.assertEqual(result.exit_code, 0)
-            result = runner.invoke(build_impl,
-                                   ["--platform", "HOST", "--strip", "--no-remove", "shortw",
-                                    "projective",
-                                    "add-1998-cmo", "dbl-1998-cmo", "z", "ltr(complete=True)",
-                                    "."])
-            self.assertEqual(result.exit_code, 0)
-            result = runner.invoke(build_impl,
-                                   ["--platform", "HOST", "--no-ecdsa", "montgom",
-                                    "xz", "ladd-1987-m", "dbl-1987-m", "scale", "ldr()",
-                                    "."])
+            result = runner.invoke(build_impl, args)
             self.assertEqual(result.exit_code, 0)
 
     def test_cli_build_fails(self):

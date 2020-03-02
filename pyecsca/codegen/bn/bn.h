@@ -3,9 +3,19 @@
 
 #include <tommath.h>
 
-#define RED_MONTGOMERY   1
-#define RED_BARRET 2
-#define RED_BASE 3
+#define RED_MONTGOMERY   1 //TODO: Make Montgomery work!
+#define RED_BARRET 		 2
+#define RED_BASE		 3
+
+#define MUL_TOOM_COOK 1
+#define MUL_KARATSUBA 2
+#define MUL_COMBA	  3
+#define MUL_BASE	  4
+
+#define SQR_TOOM_COOK 1
+#define SQR_KARATSUBA 2
+#define SQR_COMBA	  3
+#define SQR_BASE	  4
 
 #define bn_t mp_int
 #define bn_digit mp_digit
@@ -29,11 +39,11 @@
 
 typedef struct {
 	#if REDUCTION == RED_MONTGOMERY
-	bn_digit montgomery_digit;
-	bn_t montgomery_renorm;
-	bn_t montgomery_renorm_sqr;
+		bn_digit montgomery_digit;
+		bn_t montgomery_renorm;
+		bn_t montgomery_renorm_sqr;
 	#elif REDUCTION == RED_BARRETT
-	bn_t barrett;
+		bn_t barrett;
 	#endif
 } red_t;
 
@@ -47,6 +57,8 @@ typedef struct {
 	size_t length;
 	int w;
 } wnaf_t;
+
+void math_init(void);
 
 bn_err  bn_init(bn_t *bn);
 #define bn_init_multi mp_init_multi

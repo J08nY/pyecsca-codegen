@@ -27,26 +27,32 @@ class ImplTests(TestCase):
 
     def do_basic_test(self, callback, runner, params, mult_class, formulas, mult_name,
                       ecdsa, ecdh, **mult_kwargs):
-        with runner.isolated_filesystem() as tmpdir:
-            runner.invoke(build_impl,
-                          ["--platform", "HOST",
-                           #"--red", "MONTGOMERY",
-                           "--ecdsa" if ecdsa else "--no-ecdsa",
-                           "--ecdh" if ecdh else "--no-ecdh",
-                           params.curve.model.shortname, params.curve.coordinate_model.name,
-                           *formulas,
-                           f"{mult_name}({','.join(f'{key}={value}' for key, value in mult_kwargs.items())})",
-                           "."])
-            target = HostTarget(params.curve.model, params.curve.coordinate_model,
-                                binary=join(tmpdir, "pyecsca-codegen-HOST.elf"))
-            target.connect()
-            target.set_params(params)
-            formula_instances = [params.curve.coordinate_model.formulas[formula] for formula
-                                 in formulas]
-            mult = mult_class(*formula_instances, **mult_kwargs)
-            mult.init(params, params.generator)
-            callback(target, mult, params)
-            target.disconnect()
+        other_args = [
+            ("--mul", "KARATSUBA", "--sqr", "KARATSUBA"),
+            ("--mul", "TOOM_COOK", "--sqr", "TOOM_COOK"),
+            ("--red", "BARRETT")
+        ]
+        for additional in other_args:
+            with runner.isolated_filesystem() as tmpdir:
+                runner.invoke(build_impl,
+                              ["--platform", "HOST",
+                               *additional,
+                               "--ecdsa" if ecdsa else "--no-ecdsa",
+                               "--ecdh" if ecdh else "--no-ecdh",
+                               params.curve.model.shortname, params.curve.coordinate_model.name,
+                               *formulas,
+                               f"{mult_name}({','.join(f'{key}={value}' for key, value in mult_kwargs.items())})",
+                               "."])
+                target = HostTarget(params.curve.model, params.curve.coordinate_model,
+                                    binary=join(tmpdir, "pyecsca-codegen-HOST.elf"))
+                target.connect()
+                target.set_params(params)
+                formula_instances = [params.curve.coordinate_model.formulas[formula] for formula
+                                     in formulas]
+                mult = mult_class(*formula_instances, **mult_kwargs)
+                mult.init(params, params.generator)
+                callback(target, mult, params)
+                target.disconnect()
 
 
 class PRNGTests(ImplTests):

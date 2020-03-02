@@ -9,7 +9,7 @@ from typing import Optional, List, Set, Mapping, MutableMapping, Any, Tuple
 from jinja2 import Environment, PackageLoader
 from pkg_resources import resource_filename
 from public import public
-from pyecsca.ec.configuration import HashType, RandomMod, Reduction
+from pyecsca.ec.configuration import HashType, RandomMod, Reduction, Multiplication, Squaring
 from pyecsca.ec.coordinates import CoordinateModel
 from pyecsca.ec.formula import (Formula)
 from pyecsca.ec.model import CurveModel
@@ -190,9 +190,11 @@ def render_main(model: CurveModel, coords: CoordinateModel, keygen: bool, ecdh: 
                                              keygen=keygen, ecdh=ecdh, ecdsa=ecdsa)
 
 
-def render_makefile(platform: Platform, hash_type: HashType, mod_rand: RandomMod, reduction: Reduction) -> str:
+def render_makefile(platform: Platform, hash_type: HashType, mod_rand: RandomMod,
+                    reduction: Reduction, mul: Multiplication, sqr: Squaring) -> str:
     return env.get_template("Makefile").render(platform=str(platform), hash_type=str(hash_type),
-                                               mod_rand=str(mod_rand), reduction=str(reduction))
+                                               mod_rand=str(mod_rand), reduction=str(reduction),
+                                               mul=str(mul), sqr=str(sqr))
 
 
 def save_render(dir: str, fname: str, rendered: str):
@@ -216,7 +218,7 @@ def render(config: DeviceConfiguration) -> Tuple[str, str, str]:
     os.mkdir(gen_dir)
 
     save_render(temp, "Makefile",
-                render_makefile(config.platform, config.hash_type, config.mod_rand, config.red))
+                render_makefile(config.platform, config.hash_type, config.mod_rand, config.red, config.mult, config.sqr))
     save_render(temp, "main.c",
                 render_main(config.model, config.coords, config.keygen, config.ecdh, config.ecdsa))
     save_render(gen_dir, "defs.h", render_defs(config.model, config.coords))

@@ -471,6 +471,7 @@ int main(void) {
 
     prng_init();
     formulas_init();
+    math_init();
 
     curve = curve_new();
     pubkey = point_new();

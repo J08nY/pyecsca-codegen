@@ -3,6 +3,7 @@ import re
 from binascii import hexlify, unhexlify
 from enum import IntFlag
 from os import path
+from time import time
 from typing import Mapping, Union, Optional, Tuple
 
 import chipwhisperer as cw
@@ -316,7 +317,9 @@ def generate(ctx: click.Context, timeout, curve):
     target.timeout = timeout
     target.connect()
     target.set_params(curve)
+    start = time()
     click.echo(target.generate())
+    click.echo(time() - start)
     target.disconnect()
 
 

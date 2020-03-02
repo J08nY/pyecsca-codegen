@@ -1,6 +1,31 @@
 #include "bn.h"
 #include <string.h>
 #include <stdlib.h>
+#include <limits.h>
+
+void math_init(void) {
+	#if MUL == MUL_TOOM_COOK
+		MP_MUL_TOOM_CUTOFF = 4;
+		MP_MUL_KARATSUBA_CUTOFF = INT_MAX;
+	#elif MUL == MUL_KARATSUBA
+		MP_MUL_TOOM_CUTOFF = INT_MAX;
+		MP_MUL_KARATSUBA_CUTOFF = 2;
+	#else
+		MP_MUL_TOOM_CUTOFF = INT_MAX;
+		MP_MUL_KARATSUBA_CUTOFF = INT_MAX;
+	#endif //TODO: COMBA
+	
+	#if SQR == SQR_TOOM_COOK
+		MP_SQR_TOOM_CUTOFF = 4;
+		MP_SQR_KARATSUBA_CUTOFF = INT_MAX;
+	#elif SQR == SQR_KARATSUBA
+		MP_SQR_TOOM_CUTOFF = INT_MAX;
+		MP_SQR_KARATSUBA_CUTOFF = 2;
+	#else
+		MP_SQR_TOOM_CUTOFF = INT_MAX;
+		MP_SQR_KARATSUBA_CUTOFF = INT_MAX;
+	#endif //TODO: COMBA
+}
 
 bn_err bn_init(bn_t *bn) {
 	return mp_init(bn);

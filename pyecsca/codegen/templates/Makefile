@@ -4,7 +4,7 @@ SRC += main.c bn/bn.c asn1/asn1.c hash/hash.c prng/prng.c $(wildcard gen/*.c)
 
 PLATFORM = {{ platform }}
 
-CDEFS += -DHASH={{ hash_type }} -DMOD_RAND={{ mod_rand }} -DREDUCTION={{ reduction }}
+CDEFS += -DHASH={{ hash_type }} -DMOD_RAND={{ mod_rand }} -DREDUCTION={{ reduction }} -DMUL={{ mul }} -DSQR={{ sqr }}
 
 MKDIR_LIST += hash prng asn1 bn gen
 
