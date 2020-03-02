@@ -15,6 +15,10 @@ bool point_equals(const point_t *one, const point_t *other);
 
 bool point_equals_affine(const point_t *one, const point_t *other, const curve_t *curve);
 
+void point_red_encode(point_t *point, const curve_t *curve);
+
+void point_red_decode(point_t *point, const curve_t *curve);
+
 void point_to_affine(const point_t *point, const curve_t *curve, bn_t *out_x, bn_t *out_y);
 
 void point_from_affine(bn_t *x, bn_t *y, const curve_t *curve, point_t *out);

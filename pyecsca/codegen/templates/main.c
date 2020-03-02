@@ -96,11 +96,17 @@ static uint8_t cmd_set_params(uint8_t *data, uint16_t len) {
 	// need p, [params], n, h, g[xy], i[variables]
 	fat_t affine[2] = {fat_empty, fat_empty};
 	parse_data(data, len, "", parse_set_params, (void *) affine);
+	if (!curve->neutral->infinity) {
+		point_red_encode(curve->neutral, curve);
+	}
+
 	bn_t x; bn_init(&x);
 	bn_t y; bn_init(&y);
 	bn_from_bin(affine[0].value, affine[0].len, &x);
 	bn_from_bin(affine[1].value, affine[1].len, &y);
 
+	bn_red_encode(&x, &curve->p, &curve->p_red);
+	bn_red_encode(&y, &curve->p, &curve->p_red);
 	point_from_affine(&x, &y, curve, curve->generator);
 	bn_clear(&x);
 	bn_clear(&y);
@@ -125,6 +131,8 @@ static uint8_t cmd_generate(uint8_t *data, uint16_t len) {
 	bn_t y; bn_init(&y);
 
 	point_to_affine(pubkey, curve, &x, &y);
+	bn_red_decode(&x, &curve->p, &curve->p_red);
+	bn_red_decode(&y, &curve->p, &curve->p_red);
 
 	uint8_t pub[coord_size * 2];
 	bn_to_binpad(&x, pub, coord_size);
@@ -176,6 +184,8 @@ static uint8_t cmd_set_pubkey(uint8_t *data, uint16_t len) {
 	bn_from_bin(affine[0].value, affine[0].len, &x);
 	bn_from_bin(affine[1].value, affine[1].len, &y);
 
+	bn_red_encode(&x, &curve->p, &curve->p_red);
+	bn_red_encode(&y, &curve->p, &curve->p_red);
 	point_from_affine(&x, &y, curve, pubkey);
 	bn_clear(&x);
 	bn_clear(&y);
@@ -201,6 +211,7 @@ static uint8_t cmd_scalar_mult(uint8_t *data, uint16_t len) {
 	point_t *result = point_new();
 
 	scalar_mult(&scalar, curve->generator, curve, result);
+	//point_red_decode(result, curve);
 
 	uint8_t res[coord_size * {{ curve_variables | length }}];
 	{%- for variable in curve_variables %}
@@ -240,6 +251,8 @@ static uint8_t cmd_ecdh(uint8_t *data, uint16_t len) {
 	bn_from_bin(affine[0].value, affine[0].len, &ox);
 	bn_from_bin(affine[1].value, affine[1].len, &oy);
 
+	bn_red_encode(&ox, &curve->p, &curve->p_red);
+	bn_red_encode(&oy, &curve->p, &curve->p_red);
 	point_from_affine(&ox, &oy, curve, other);
 	bn_clear(&ox);
 	bn_clear(&oy);
@@ -254,6 +267,8 @@ static uint8_t cmd_ecdh(uint8_t *data, uint16_t len) {
 	bn_t y; bn_init(&y);
 
 	point_to_affine(result, curve, &x, &y);
+	bn_red_decode(&x, &curve->p, &curve->p_red);
+	bn_red_decode(&y, &curve->p, &curve->p_red);
 
 	size_t size = bn_to_bin_size(&curve->p);
 
@@ -328,6 +343,8 @@ static uint8_t cmd_ecdsa_sign(uint8_t *data, uint16_t len) {
 
 	bn_t r; bn_init(&r);
 	point_to_affine(p, curve, &r, NULL);
+	bn_red_decode(&r, &curve->p, &curve->p_red);
+
 	bn_mod(&r, &curve->n, &r);
 	// r = ([k]G).x mod n
 
@@ -399,12 +416,14 @@ static uint8_t cmd_ecdsa_verify(uint8_t *data, uint16_t len) {
 
 	point_t *p1 = point_new();
 	point_t *p2 = point_new();
+
 	scalar_mult(&h, curve->generator, curve, p1);
 	scalar_mult(&r, pubkey, curve, p2);
 
 	point_add(p1, p2, curve, p1);
 	bn_t x; bn_init(&x);
 	point_to_affine(p1, curve, &x, NULL);
+	bn_red_decode(&x, &curve->p, &curve->p_red);
 	bn_mod(&x, &curve->n, &x);
 
 	bool result = bn_eq(&orig_r, &x);

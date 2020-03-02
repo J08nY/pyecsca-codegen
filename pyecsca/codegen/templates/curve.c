@@ -8,7 +8,6 @@ curve_t* curve_new(void) {
 	bn_init(&result->{{ param }});
 	{%- endfor %}
 	bn_red_init(&result->p_red);
-	bn_red_init(&result->n_red);
 	result->generator = point_new();
 	result->neutral = point_new();
 
@@ -20,7 +19,6 @@ void curve_free(curve_t *curve) {
 	bn_clear(&curve->{{ param }});
 	{%- endfor %}
 	bn_red_clear(&curve->p_red);
-	bn_red_clear(&curve->n_red);
 	if (curve->generator) {
 		point_free(curve->generator);
 	}
@@ -34,7 +32,7 @@ void curve_set_param(curve_t *curve, char name, const bn_t *value) {
 	switch (name) {
 	{%- for param in params + ["p", "n", "h"] %}
 		case '{{ param }}': bn_copy(value, &curve->{{ param }});
-		{% if param in ("p", "n") %}
+		{% if param == "p" %}
 							bn_red_setup(value, &curve->{{ param }}_red);
 		{%- endif %}
 							break;

@@ -3,6 +3,10 @@
 
 #include <tommath.h>
 
+#define RED_MONTGOMERY   1
+#define RED_BARRET 2
+#define RED_BASE 3
+
 #define bn_t mp_int
 #define bn_digit mp_digit
 #define bn_err mp_err

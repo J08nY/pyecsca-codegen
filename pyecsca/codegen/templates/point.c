@@ -76,6 +76,22 @@ bool point_equals_affine(const point_t *one, const point_t *other, const curve_t
 	return result;
 }
 
+void point_red_encode(point_t *point, const curve_t *curve) {
+	#if REDUCTION == RED_MONTGOMERY
+		{%- for variable in variables %}
+		bn_red_encode(&point->{{ variable }}, &curve->p, &curve->p_red);
+		{%- endfor %}
+	#endif
+}
+
+void point_red_decode(point_t *point, const curve_t *curve) {
+	#if REDUCTION == RED_MONTGOMERY
+		{%- for variable in variables %}
+		bn_red_decode(&point->{{ variable }}, &curve->p, &curve->p_red);
+		{%- endfor %}
+	#endif
+}
+
 void point_to_affine(const point_t *point, const curve_t *curve, bn_t *out_x, bn_t *out_y) {
 	{{ start_action("coord_map") }}
 	{{ ops.render_all(allocations, initializations, operations, returns, frees, "err") }}
