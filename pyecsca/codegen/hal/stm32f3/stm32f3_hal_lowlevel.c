@@ -114,6 +114,19 @@ uint32_t HAL_RCC_GetPCLK1Freq(void)
 }
 
 /**
+  * @brief  Returns the PCLK2 frequency
+  * @note   Each time PCLK2 changes, this function must be called to update the
+  *         right PCLK2 value. Otherwise, any configuration based on this function will be incorrect.
+  * @retval PCLK2 frequency
+  */
+uint32_t HAL_RCC_GetPCLK2Freq(void)
+{
+  /* Get HCLK source and Compute PCLK2 frequency ---------------------------*/
+  //return (HAL_RCC_GetHCLKFreq()>> APBPrescTable[(RCC->CFGR & RCC_CFGR_PPRE2)>> POSITION_VAL(RCC_CFGR_PPRE2)]);
+  return 7372800U;
+}
+
+/**
   * @brief  Initializes the RCC Oscillators according to the specified parameters in the
   *         RCC_OscInitTypeDef.
   * @param  RCC_OscInitStruct pointer to an RCC_OscInitTypeDef structure that
@@ -615,19 +628,6 @@ HAL_StatusTypeDef HAL_RCC_ClockConfig(RCC_ClkInitTypeDef  *RCC_ClkInitStruct, ui
   //HAL_InitTick (TICK_INT_PRIORITY);
   
   return HAL_OK;
-}
-
-/**
-  * @brief  Returns the PCLK2 frequency
-  * @note   Each time PCLK2 changes, this function must be called to update the
-  *         right PCLK2 value. Otherwise, any configuration based on this function will be incorrect.
-  * @retval PCLK2 frequency
-  */
-uint32_t HAL_RCC_GetPCLK2Freq(void)
-{
-  /* Get HCLK source and Compute PCLK2 frequency ---------------------------*/
-  //return (HAL_RCC_GetHCLKFreq()>> APBPrescTable[(RCC->CFGR & RCC_CFGR_PPRE2)>> POSITION_VAL(RCC_CFGR_PPRE2)]);
-  return 7372800;
 }
 
 

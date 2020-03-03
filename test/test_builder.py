@@ -11,7 +11,8 @@ class BuilderTests(TestCase):
         ("basic", ["--platform", "HOST", "shortw", "projective", "add-1998-cmo", "dbl-1998-cmo", "z", "ltr(complete=True)", "."]),
         ("karatsuba", ["--platform", "HOST", "--mul", "KARATSUBA", "shortw", "projective", "add-1998-cmo", "dbl-1998-cmo", "z", "ltr(complete=True)", "."]),
         ("strip", ["--platform", "HOST", "--strip", "--no-remove", "shortw", "projective", "add-1998-cmo", "dbl-1998-cmo", "z", "ltr(complete=True)", "."]),
-        ("montgom", ["--platform", "HOST", "--no-ecdsa", "montgom", "xz", "ladd-1987-m", "dbl-1987-m", "scale", "ldr()", "."])
+        ("montgom", ["--platform", "HOST", "--no-ecdsa", "montgom", "xz", "ladd-1987-m", "dbl-1987-m", "scale", "ldr()", "."]),
+        ("jacobian", ["--platform", "HOST", "--no-ecdsa", "shortw", "jacobian", "add-2007-bl", "dbl-2007-bl", "rtl()", "."])
     ])
     def test_cli_build(self, name, args):
         runner = CliRunner()

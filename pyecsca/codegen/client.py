@@ -234,8 +234,10 @@ class ImplTarget(SimpleSerialTarget):
         self.send_cmd(SMessage.from_raw(cmd_set_trigger(actions)), self.timeout)
         self.trigger = actions
 
-    def disconnect(self):
+    def quit(self):
         self.write(b"x\n")
+
+    def disconnect(self):
         super().disconnect()
 
 
