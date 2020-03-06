@@ -128,9 +128,7 @@ int simpleserial_get(void)
 
 	// Callback
 	uint8_t ret[1];
-	trigger_high();
 	ret[0] = commands[cmd].fp(data_buf, i/2);
-	trigger_low();
 	
 	simpleserial_put('z', 1, ret);
 	return 1;

@@ -141,7 +141,7 @@ def cmd_ecdsa_verify(data: bytes, sig: bytes) -> str:
 @public
 def cmd_set_trigger(actions: Triggers) -> str:
     vector_bytes = actions.to_bytes(4, "little")
-    return "t" + hexlify(vector_bytes)
+    return "t" + hexlify(vector_bytes).decode()
 
 
 @public
