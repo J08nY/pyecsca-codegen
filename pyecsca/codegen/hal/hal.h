@@ -41,7 +41,13 @@ void platform_init(void);
     #error "Unsupported HAL Type"
 #endif
 
-#define NOP() __asm__ __volatile__ ("nop");
+
+#ifndef NO_NOP
+	#define NOP() __asm__ __volatile__ ("nop");
+#else
+	#define NOP()
+#endif
+
 #define _2(a) a;a
 #define NOP_2() _2(NOP())
 #define NOP_4() _2(_2(NOP()))

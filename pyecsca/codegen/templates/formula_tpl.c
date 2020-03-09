@@ -1,5 +1,6 @@
 #include "point.h"
 #include "action.h"
+#include "hal/hal.h"
 {% import "ops.c" as ops %}
 {% from "action.c" import start_action, end_action %}
 
@@ -9,6 +10,7 @@
 
 void point_tpl(const point_t *one, const curve_t *curve, point_t *out_one) {
 	{{ start_action("tpl") }}
+	NOP_128();
 	{%- if short_circuit %}
 		if (point_equals(one, curve->neutral)) {
 			point_set(one, out_one);
@@ -18,5 +20,6 @@ void point_tpl(const point_t *one, const curve_t *curve, point_t *out_one) {
 	{{ ops.render_initializations(initializations) }}
 	{{ ops.render_ops(operations) }}
 	{{ ops.render_returns(returns) }}
+	NOP_128();
 	{{ end_action("tpl") }}
 }
