@@ -202,6 +202,7 @@ bn_err bn_red_decode(bn_t *one, const bn_t *mod, const red_t *red) {
 }
 
 bn_err bn_red_add(const bn_t *one, const bn_t *other, const bn_t *mod, const red_t *red, bn_t *out) {
+#ifdef BN_NON_CONST
 	bn_err err;
 	if ((err = mp_add(one, other, out)) != BN_OKAY) {
 		return err;
@@ -211,9 +212,13 @@ bn_err bn_red_add(const bn_t *one, const bn_t *other, const bn_t *mod, const red
 	} else {
 		return err;
 	}
+#else
+	return mp_addmod(one, other, mod, out);
+#endif
 }
 
 bn_err bn_red_sub(const bn_t *one, const bn_t *other, const bn_t *mod, const red_t *red, bn_t *out) {
+#ifdef BN_NON_CONST
 	bn_err err;
 	if ((err = mp_sub(one, other, out)) != BN_OKAY) {
 		return err;
@@ -225,6 +230,9 @@ bn_err bn_red_sub(const bn_t *one, const bn_t *other, const bn_t *mod, const red
 		return mp_sub(out, mod, out);
 	}
 	return err;
+#else
+	return mp_submod(one, other, mod, out);
+#endif
 }
 
 bn_err bn_red_neg(const bn_t *one, const bn_t *mod, const red_t *red, bn_t *out) {

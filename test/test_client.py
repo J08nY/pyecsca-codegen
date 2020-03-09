@@ -10,7 +10,7 @@ from pyecsca.codegen.client import (encode_data, decode_data, encode_scalar, cmd
                                     cmd_set_params, cmd_set_pubkey, cmd_set_privkey,
                                     cmd_scalar_mult,
                                     cmd_ecdh, cmd_ecdsa_sign, cmd_ecdsa_verify, cmd_generate,
-                                    cmd_debug, main)
+                                    cmd_debug, main, cmd_set_trigger, Triggers)
 
 
 class EncodingTests(TestCase):
@@ -49,7 +49,7 @@ class CommandTest(TestCase):
         cmd_set_privkey(0x123456789)
 
     def test_scalar_mult(self):
-        cmd_scalar_mult(0x123456789)
+        cmd_scalar_mult(0x123456789, self.curve.generator)
 
     def test_ecdh(self):
         cmd_ecdh(self.curve.generator)
@@ -59,6 +59,9 @@ class CommandTest(TestCase):
 
     def test_ecdsa_verify(self):
         cmd_ecdsa_verify(b"something", b"signature")
+
+    def test_set_trigger(self):
+        cmd_set_trigger(Triggers.add)
 
     def test_debug(self):
         cmd_debug()

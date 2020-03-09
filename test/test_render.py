@@ -1,7 +1,8 @@
 import tempfile
 from unittest import TestCase
 
-from pyecsca.ec.configuration import HashType, RandomMod, Multiplication, Squaring, Reduction
+from pyecsca.ec.configuration import (HashType, RandomMod, Multiplication, Squaring, Reduction,
+                                      Inversion)
 from pyecsca.ec.curves import get_params
 from pyecsca.ec.mult import LTRMultiplier
 
@@ -18,6 +19,7 @@ class RenderTests(TestCase):
         mult = Multiplication.BASE
         sqr = Squaring.BASE
         red = Reduction.BASE
+        inv = Inversion.GCD
         params = get_params("secg", "secp128r1", "projective")
         model = params.curve.model
         coords = params.curve.coordinate_model
@@ -27,6 +29,6 @@ class RenderTests(TestCase):
         formulas = [add, dbl, scl]
         scalarmult = LTRMultiplier(add, dbl, scl)
         config = DeviceConfiguration(model, coords, formulas, scalarmult, hash_type, mod_rand, mult,
-                                     sqr, red, platform, True, True, True)
+                                     sqr, red, inv, platform, True, True, True)
         temp = tempfile.mkdtemp()
         render_and_build(config, temp, True)

@@ -119,8 +119,9 @@ def cmd_set_pubkey(pubkey: Point) -> str:
 
 
 @public
-def cmd_scalar_mult(scalar: int) -> str:
-    return "m" + hexlify(encode_data(None, {"s": encode_scalar(scalar)})).decode()
+def cmd_scalar_mult(scalar: int, point: Point) -> str:
+    return "m" + hexlify(encode_data(None, {"s": encode_scalar(scalar),
+                                            "w": encode_point(point.to_affine())})).decode()
 
 
 @public
@@ -201,8 +202,8 @@ class ImplTarget(SimpleSerialTarget):
         self.send_cmd(SMessage.from_raw(cmd_set_pubkey(pubkey)), self.timeout)
         self.pubkey = pubkey
 
-    def scalar_mult(self, scalar: int) -> Point:
-        resp = self.send_cmd(SMessage.from_raw(cmd_scalar_mult(scalar)), self.timeout)
+    def scalar_mult(self, scalar: int, point: Point) -> Point:
+        resp = self.send_cmd(SMessage.from_raw(cmd_scalar_mult(scalar, point)), self.timeout)
         result = resp["w"]
         plen = ((self.params.curve.prime.bit_length() + 7) // 8) * 2
         params = {var: Mod(int(result.data[i * plen:(i + 1) * plen], 16), self.params.curve.prime)
@@ -272,6 +273,7 @@ class HostTarget(ImplTarget, BinaryTarget):
 @click.option("--fw",
               help="The firmware. Either a .hex file for a device platform or .elf for HOST platform.",
               required=True)
+@click.option("--timeout", type=int, default=15000)
 @click.argument("model", required=True,
                 type=click.Choice(["shortw", "montgom", "edwards", "twisted"]),
                 callback=get_model)
@@ -280,19 +282,19 @@ class HostTarget(ImplTarget, BinaryTarget):
 @click.version_option()
 @click.pass_context
 @public
-def main(ctx, platform, fw, model, coords):
+def main(ctx, platform, fw, timeout, model, coords):
     """
     A tool for communicating with built and flashed ECC implementations.
     """
     ctx.ensure_object(dict)
     ctx.obj["fw"] = fw
     if platform != Platform.HOST:
-        ctx.obj["target"] = DeviceTarget(model, coords, platform)
+        ctx.obj["target"] = DeviceTarget(model, coords, platform, timeout=timeout)
     else:
         if fw is None or not path.isfile(fw):
             click.secho("Binary is required if the target is the host.", fg="red", err=True)
             raise click.Abort
-        ctx.obj["target"] = HostTarget(model, coords, binary=fw)
+        ctx.obj["target"] = HostTarget(model, coords, binary=fw, timeout=timeout)
 
 
 def get_curve(ctx: click.Context, param, value: Optional[str]) -> DomainParameters:
@@ -306,22 +308,21 @@ def get_curve(ctx: click.Context, param, value: Optional[str]) -> DomainParamete
 
 
 @main.command("gen")
-@click.option("--timeout", type=int, default=15000)
 @click.argument("curve", required=True, callback=get_curve)
 @click.pass_context
 @public
-def generate(ctx: click.Context, timeout, curve):
+def generate(ctx: click.Context, curve):
     """Generate a keypair on a curve."""
     ctx.ensure_object(dict)
     target: ImplTarget = ctx.obj["target"]
     if isinstance(target, Flashable):
         target.flash(ctx.obj["fw"])
-    target.timeout = timeout
     target.connect()
     target.set_params(curve)
     start = time()
     click.echo(target.generate())
     click.echo(time() - start)
+    target.quit()
     target.disconnect()
 
 
@@ -347,41 +348,38 @@ def get_pubkey(ctx: click.Context, param, value: Optional[str]) -> Point:
 
 
 @main.command("ecdh")
-@click.option("--timeout", type=int, default=15000)
 @click.argument("curve", required=True, callback=get_curve)
 @click.argument("pubkey", required=True, callback=get_pubkey)
 @click.pass_context
 @public
-def ecdh(ctx: click.Context, timeout, curve, pubkey):
+def ecdh(ctx: click.Context, curve, pubkey):
     """Perform ECDH with a given public key."""
     ctx.ensure_object(dict)
     target: ImplTarget = ctx.obj["target"]
     if isinstance(target, Flashable):
         target.flash(ctx.obj["fw"])
-    target.timeout = timeout
     target.connect()
     target.set_params(curve)
     target.generate()
     click.echo(hexlify(target.ecdh(pubkey)))
+    target.quit()
     target.disconnect()
 
 
 @main.command("ecdsa-sign")
-@click.option("--timeout", type=int, default=15000)
 @click.argument("curve", required=True, callback=get_curve)
 @click.pass_context
 @public
-def ecdsa_sign(ctx: click.Context, timeout, curve):
+def ecdsa_sign(ctx: click.Context, curve):
     ctx.ensure_object(dict)
     # TODO
 
 
 @main.command("ecdsa-verify")
-@click.option("--timeout", type=int, default=15000)
 @click.argument("curve", required=True, callback=get_curve)
 @click.pass_context
 @public
-def ecdsa_verify(ctx: click.Context, timeout, curve):
+def ecdsa_verify(ctx: click.Context, curve):
     ctx.ensure_object(dict)
     # TODO
 

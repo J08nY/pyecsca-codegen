@@ -144,7 +144,7 @@ class ScalarMultiplicationTests(ImplTests):
 
         def callback(target, mult, params):
             for value in values:
-                result = target.scalar_mult(value)
+                result = target.scalar_mult(value, params.generator)
                 expected = mult.multiply(value)
                 self.assertEqual(result, expected)
 

@@ -111,12 +111,13 @@ Set the public key.
 Perform scalar multiplication
 -----------------------------
 
-Perform scalar multiplication of the curve generator.
+Perform scalar multiplication of a point.
 
 - Character: :code:`m`
 - Payload: Encoded.
 
   - :code:`s` The scalar.
+  - :code:`w` The point to multiply.
 - Response:
   - :code:`w` The resulting point, in the implementation coordinates.
 

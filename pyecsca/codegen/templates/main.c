@@ -200,9 +200,21 @@ static uint8_t cmd_set_pubkey(uint8_t *data, uint16_t len) {
 }
 
 static void parse_scalar_mult(const char *path, const uint8_t *data, size_t len, void *arg) {
-	bn_t *scalar = (bn_t *)arg;
+	fat_t *affine = (fat_t *) arg;
+	if (strcmp(path, "wx") == 0) {
+		affine[0].len = len;
+		affine[0].value = malloc(len);
+		memcpy(affine[0].value, data, len);
+		return;
+	}
+	if (strcmp(path, "wy") == 0) {
+		affine[1].len = len;
+		affine[1].value = malloc(len);
+		memcpy(affine[1].value, data, len);
+		return;
+	}
 	if (strcmp(path, "s") == 0) {
-		bn_from_bin(data, len, scalar);
+		bn_from_bin(data, len, (bn_t *) affine[2].value);
 		return;
 	}
 }
@@ -210,13 +222,26 @@ static void parse_scalar_mult(const char *path, const uint8_t *data, size_t len,
 static uint8_t cmd_scalar_mult(uint8_t *data, uint16_t len) {
 	// perform base point scalar mult with supplied scalar.
 	bn_t scalar; bn_init(&scalar);
-	parse_data(data, len, "", parse_scalar_mult, (void *) &scalar);
+	point_t *other = point_new();
+	fat_t affine[3] = {fat_empty, fat_empty, {0, (void *) &scalar}};
+	parse_data(data, len, "", parse_scalar_mult, (void *) affine);
 	size_t coord_size = bn_to_bin_size(&curve->p);
+	bn_t ox; bn_init(&ox);
+	bn_t oy; bn_init(&oy);
+	bn_from_bin(affine[0].value, affine[0].len, &ox);
+	bn_from_bin(affine[1].value, affine[1].len, &oy);
 
+	bn_red_encode(&ox, &curve->p, &curve->p_red);
+	bn_red_encode(&oy, &curve->p, &curve->p_red);
+	point_from_affine(&ox, &oy, curve, other);
+	bn_clear(&ox);
+	bn_clear(&oy);
+	free(affine[0].value);
+	free(affine[1].value);
 	point_t *result = point_new();
 
-	scalar_mult(&scalar, curve->generator, curve, result);
-	//point_red_decode(result, curve);
+	scalar_mult(&scalar, other, curve, result);
+	point_red_decode(result, curve);
 
 	uint8_t res[coord_size * {{ curve_variables | length }}];
 	{%- for variable in curve_variables %}
@@ -224,6 +249,7 @@ static uint8_t cmd_scalar_mult(uint8_t *data, uint16_t len) {
 	{%- endfor %}
 	bn_clear(&scalar);
 	point_free(result);
+	point_free(other);
 
 	simpleserial_put('w', coord_size * {{ curve_variables | length }}, res);
 	return 0;
@@ -496,9 +522,9 @@ int main(void) {
     simpleserial_addcmd('t', MAX_SS_LEN, cmd_set_trigger);
     simpleserial_addcmd('d', MAX_SS_LEN, cmd_debug);
 
-	led_ok(1);
+	//led_ok(1);
     while(simpleserial_get());
-    led_ok(0);
+    //led_ok(0);
 
     bn_clear(&privkey);
     curve_free(curve);

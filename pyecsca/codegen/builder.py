@@ -8,7 +8,8 @@ from typing import List, Optional, Tuple, Type, MutableMapping
 
 import click
 from public import public
-from pyecsca.ec.configuration import Multiplication, Squaring, Reduction, HashType, RandomMod
+from pyecsca.ec.configuration import (Multiplication, Squaring, Reduction, HashType, RandomMod,
+                                      Inversion)
 from pyecsca.ec.coordinates import CoordinateModel
 from pyecsca.ec.formula import Formula, AdditionFormula
 from pyecsca.ec.model import CurveModel
@@ -108,6 +109,10 @@ def main():
               type=click.Choice(Reduction.names()),
               callback=wrap_enum(Reduction),
               help="Modular reduction algorithm to use.")
+@click.option("--inv", envvar="INV", default="GCD", show_default=True,
+              type=click.Choice(Inversion.names()),
+              callback=wrap_enum(Inversion),
+              help="Modular inversion algorithm to use.")
 @click.option("--keygen/--no-keygen", help="Whether to enable keygen.", is_flag=True, default=True,
               show_default=True)
 @click.option("--ecdh/--no-ecdh", help="Whether to enable ECDH.", is_flag=True, default=True,
@@ -130,7 +135,7 @@ def main():
 @click.argument("outdir")
 @click.pass_context
 @public
-def build_impl(ctx, platform, hash, rand, mul, sqr, red, keygen, ecdh, ecdsa, strip, remove,
+def build_impl(ctx, platform, hash, rand, mul, sqr, red, inv, keygen, ecdh, ecdsa, strip, remove,
                verbose, model, coords, formulas, scalarmult, outdir):
     """This command builds an ECC implementation.
 
@@ -147,7 +152,7 @@ def build_impl(ctx, platform, hash, rand, mul, sqr, red, keygen, ecdh, ecdsa, st
         raise click.BadParameter("ECDSA needs an addition formula. None was supplied.")
 
     config = DeviceConfiguration(model, coords, formulas, scalarmult, hash, rand, mul, sqr, red,
-                                 platform, keygen, ecdh, ecdsa)
+                                 inv, platform, keygen, ecdh, ecdsa)
     dir, elf_file, hex_file = render(config)
 
     subprocess.run(["make"], cwd=dir, capture_output=not verbose)
