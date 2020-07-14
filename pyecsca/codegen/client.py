@@ -12,10 +12,9 @@ from chipwhisperer.capture.api.programmers import STM32FProgrammer, XMEGAProgram
 from chipwhisperer.capture.targets import SimpleSerial
 from public import public
 from pyecsca.ec.coordinates import CoordinateModel, AffineCoordinateModel
-from pyecsca.ec.curves import get_params
 from pyecsca.ec.mod import Mod
 from pyecsca.ec.model import CurveModel
-from pyecsca.ec.params import DomainParameters
+from pyecsca.ec.params import DomainParameters, get_params
 from pyecsca.ec.point import Point, InfinityPoint
 from pyecsca.sca.target import (SimpleSerialTarget, ChipWhispererTarget, BinaryTarget, Flashable,
                                 SimpleSerialMessage as SMessage)

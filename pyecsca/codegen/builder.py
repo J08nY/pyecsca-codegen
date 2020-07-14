@@ -151,11 +151,15 @@ def build_impl(ctx, platform, hash, rand, mul, sqr, red, inv, keygen, ecdh, ecds
     if ecdsa and not any(isinstance(formula, AdditionFormula) for formula in formulas):
         raise click.BadParameter("ECDSA needs an addition formula. None was supplied.")
 
+    click.echo("[ ] Rendering...")
     config = DeviceConfiguration(model, coords, formulas, scalarmult, hash, rand, mul, sqr, red,
                                  inv, platform, keygen, ecdh, ecdsa)
     dir, elf_file, hex_file = render(config)
+    click.echo("[*] Rendered.")
 
+    click.echo("[ ] Building...")
     subprocess.run(["make"], cwd=dir, capture_output=not verbose)
+    click.echo("[*] Built.")
 
     if strip:
         subprocess.run(["make", "strip"], cwd=dir, capture_output=not verbose)
@@ -163,6 +167,8 @@ def build_impl(ctx, platform, hash, rand, mul, sqr, red, inv, keygen, ecdh, ecds
     full_hex_path = path.join(dir, hex_file)
     shutil.copy(full_elf_path, outdir)
     shutil.copy(full_hex_path, outdir)
+    click.echo(elf_file)
+    click.echo(hex_file)
     if remove:
         shutil.rmtree(dir)
     else:

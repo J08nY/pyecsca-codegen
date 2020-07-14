@@ -4,6 +4,7 @@ import subprocess
 import tempfile
 from _ast import Pow
 from os import path
+from os import mkdir
 from typing import Optional, List, Set, Mapping, MutableMapping, Any, Tuple
 
 from jinja2 import Environment, PackageLoader
@@ -252,9 +253,10 @@ def build(dir: str, elf_file: str, hex_file: str, outdir: str, strip: bool = Fal
     if res.returncode != 0:
         raise ValueError("Build failed!")
     if strip:
-        subprocess.run(["strip", elf_file], cwd=dir)
+        subprocess.run(["make", "strip"], cwd=dir)
     full_elf_path = path.join(dir, elf_file)
     full_hex_path = path.join(dir, hex_file)
+    mkdir(outdir)
     shutil.copy(full_elf_path, outdir)
     shutil.copy(full_hex_path, outdir)
     if remove:
