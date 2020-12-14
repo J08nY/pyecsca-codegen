@@ -4,7 +4,7 @@ from os.path import join
 from unittest import TestCase
 
 from click.testing import CliRunner
-from pyecsca.ec.curves import get_params
+from pyecsca.ec.params import get_params
 from pyecsca.ec.key_agreement import ECDH_SHA1
 from pyecsca.ec.mult import LTRMultiplier, RTLMultiplier, CoronMultiplier, BinaryNAFMultiplier
 from pyecsca.ec.point import Point
@@ -232,7 +232,7 @@ class ECDSATests(ImplTests):
         def callback(target, mult, params):
             priv, pub = target.generate()
             ecdsa = ECDSA_SHA1(copy(mult), params, mult.formulas["add"],
-                               Point.from_affine(params.curve.coordinate_model, pub), priv)
+                               pub.to_model(params.curve.coordinate_model, params.curve), priv)
 
 
             signature_data = target.ecdsa_sign(data)

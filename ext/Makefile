@@ -11,11 +11,14 @@ clean:
 tommath_dir:
 	mkdir -p ../pyecsca/codegen/tommath
 
+tommath_headers: tommath_dir
+	cp libtommath/*.h ../pyecsca/codegen/tommath/
+
 host: LIBNAME=libtommath-HOST.a
 host: CFLAGS=-DMP_NO_DEV_URANDOM -DMP_LOW_MEM -DMP_DEFAULT_DIGIT_COUNT=10
 host: COMPILE_SIZE=1
 host: COMPILE_LTO=1
-host: tommath_dir
+host: tommath_dir tommath_headers
 	$(MAKE) -C libtommath clean
 	$(MAKE) -C libtommath
 	cp libtommath/$(LIBNAME) ../pyecsca/codegen/tommath/$(LIBNAME)
@@ -26,7 +29,7 @@ stm32f0: LDFLAGS=--specs=nano.specs --specs=nosys.specs -T ../pyecsca/codegen/ha
 stm32f0: COMPILE_SIZE=1
 stm32f0: COMPILE_LTO=1
 stm32f0: LIBNAME=libtommath-CW308_STM32F0.a
-stm32f0: tommath_dir
+stm32f0: tommath_dir tommath_headers
 	$(MAKE) -C libtommath clean
 	$(MAKE) -C libtommath
 	cp libtommath/$(LIBNAME) ../pyecsca/codegen/tommath/$(LIBNAME)
@@ -37,9 +40,9 @@ stm32f3: LDFLAGS=--specs=nano.specs -T ../pyecsca/codegen/hal/stm32f3/LinkerScri
 stm32f3: COMPILE_SIZE=1
 stm32f3: COMPILE_LTO=1
 stm32f3: LIBNAME=libtommath-CW308_STM32F3.a
-stm32f3: tommath_dir
+stm32f3: tommath_dir tommath_headers
 	$(MAKE) -C libtommath clean
 	$(MAKE) -C libtommath
 	cp libtommath/$(LIBNAME) ../pyecsca/codegen/tommath/$(LIBNAME)
 
-.PHONY: all host stm32f0 stm32f3 xmega tommath_dir help clean
+.PHONY: all host stm32f0 stm32f3 xmega tommath_dir tommath_headers help clean

@@ -2,7 +2,7 @@ from os.path import join
 from unittest import TestCase
 
 from click.testing import CliRunner
-from pyecsca.ec.curves import get_params
+from pyecsca.ec.params import get_params
 from pyecsca.ec.mod import Mod
 
 from pyecsca.codegen.builder import build_impl

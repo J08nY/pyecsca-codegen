@@ -4,7 +4,7 @@ import subprocess
 import tempfile
 from _ast import Pow
 from os import path
-from os import mkdir
+from os import makedirs
 from typing import Optional, List, Set, Mapping, MutableMapping, Any, Tuple
 
 from jinja2 import Environment, PackageLoader
@@ -216,7 +216,7 @@ def render(config: DeviceConfiguration) -> Tuple[str, str, str]:
     for sym in symlinks:
         os.symlink(resource_filename("pyecsca.codegen", sym), path.join(temp, sym))
     gen_dir = path.join(temp, "gen")
-    os.mkdir(gen_dir)
+    makedirs(gen_dir, exist_ok=True)
 
     save_render(temp, "Makefile",
                 render_makefile(config.platform, config.hash_type, config.mod_rand, config.red, config.mult, config.sqr))
@@ -253,10 +253,10 @@ def build(dir: str, elf_file: str, hex_file: str, outdir: str, strip: bool = Fal
     if res.returncode != 0:
         raise ValueError("Build failed!")
     if strip:
-        subprocess.run(["make", "strip"], cwd=dir)
+        subprocess.run(["make", "strip"], cwd=dir, capture_output=True)
     full_elf_path = path.join(dir, elf_file)
     full_hex_path = path.join(dir, hex_file)
-    mkdir(outdir)
+    makedirs(outdir, exist_ok=True)
     shutil.copy(full_elf_path, outdir)
     shutil.copy(full_hex_path, outdir)
     if remove:

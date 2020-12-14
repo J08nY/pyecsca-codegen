@@ -3,7 +3,7 @@ from unittest import TestCase
 
 from pyecsca.ec.configuration import (HashType, RandomMod, Multiplication, Squaring, Reduction,
                                       Inversion)
-from pyecsca.ec.curves import get_params
+from pyecsca.ec.params import get_params
 from pyecsca.ec.mult import LTRMultiplier
 
 from pyecsca.codegen.common import Platform, DeviceConfiguration
