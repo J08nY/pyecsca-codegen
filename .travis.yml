@@ -1,20 +1,26 @@
 os: linux
 language: python
-dist: xenial
-python: "3.8"
+dist: focal
+python:
+  - "3.8"
+  - "3.9"
 
 addons:
   apt:
     packages:
       - swig
       - gcc
+      - llvm-10
+      - libllvm10
+      - llvm-10-dev
+
+env:
+  - LLVM_CONFIG=/usr/bin/llvm-config-10
 
 install:
   - pip install codecov
-  - mkdir pyecsca/codegen/tommath
   - cd ext/
   - make host
-  - cp libtommath/tommath.h ../pyecsca/codegen/tommath/tommath.h
   - git clone https://github.com/J08nY/pyecsca
   - cd pyecsca/
   - git submodule update --init --recursive
