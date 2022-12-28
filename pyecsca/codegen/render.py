@@ -211,7 +211,7 @@ def render(config: DeviceConfiguration) -> Tuple[str, str, str]:
     :return:
     """
     temp = tempfile.mkdtemp()
-    symlinks = ["asn1", "bn", "hal", "hash", "mult", "prng", "simpleserial", "tommath", "fat.h",
+    symlinks = ["asn1", "bn", "hal", "hash",  "prng", "simpleserial", "tommath", "fat.h",
                 "rand.h", "point.h", "curve.h", "mult.h", "formulas.h", "action.h", "Makefile.inc"]
     for sym in symlinks:
         os.symlink(resource_filename("pyecsca.codegen", sym), path.join(temp, sym))
