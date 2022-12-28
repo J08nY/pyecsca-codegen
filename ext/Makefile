@@ -45,4 +45,4 @@ stm32f3: tommath_dir tommath_headers
 	$(MAKE) -C libtommath
 	cp libtommath/$(LIBNAME) ../pyecsca/codegen/tommath/$(LIBNAME)
 
-.PHONY: all host stm32f0 stm32f3 xmega tommath_dir tommath_headers help clean
+.PHONY: all host stm32f0 stm32f3 tommath_dir tommath_headers help clean
