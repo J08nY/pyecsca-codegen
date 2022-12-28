@@ -6,6 +6,8 @@
 
 Codegen package. See the [main repo](https://github.com/J08nY/pyecsca) for more information.
 
+See [INSTALL](docs/INSTALL.md) for installation instructions.
+
 ## License
 
     MIT License
