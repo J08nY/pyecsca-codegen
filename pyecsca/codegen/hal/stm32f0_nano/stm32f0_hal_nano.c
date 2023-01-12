@@ -86,6 +86,8 @@ void init_uart(void)
 	HAL_UART_Init(&UartHandle);
 }
 
+static bool trig;
+
 void trigger_setup(void)
 {
 	__HAL_RCC_GPIOA_CLK_ENABLE();
@@ -98,15 +100,31 @@ void trigger_setup(void)
 	HAL_GPIO_Init(GPIOA, &GpioInit);
 	
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, RESET);
+	trig = false;
+}
+
+bool trigger_status(void)
+{
+  return trig;
+}
+
+void trigger_flip(void) {
+    if (trig) {
+            trigger_low();
+    } else {
+            trigger_high();
+    }
 }
 
 void trigger_high(void)
 {
+	trig = true;
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, SET);
 }
 
 void trigger_low(void)
 {
+	trig = false;
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, RESET);
 }   
 

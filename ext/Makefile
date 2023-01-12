@@ -23,6 +23,17 @@ host: tommath_dir tommath_headers
 	$(MAKE) -C libtommath
 	cp libtommath/$(LIBNAME) ../pyecsca/codegen/tommath/$(LIBNAME)
 
+nano: CROSS_COMPILE=arm-none-eabi-
+nano: CFLAGS=-mcpu=cortex-m0 -mthumb -mfloat-abi=soft -ffunction-sections -DMP_NO_DEV_URANDOM -DMP_32BIT -DMP_LOW_MEM -DMP_DEFAULT_DIGIT_COUNT=10
+nano: LDFLAGS=--specs=nano.specs --specs=nosys.specs -T ../pyecsca/codegen/hal/stm32f0_nano/LinkerScript.ld -Wl,--gc-sections -lm -mthumb -mcpu=cortex-m0
+nano: COMPILE_SIZE=1
+nano: COMPILE_LTO=1
+nano: LIBNAME=libtommath-CWNANO.a
+nano: tommath_dir tommath_headers
+	$(MAKE) -C libtommath clean
+	$(MAKE) -C libtommath
+	cp libtommath/$(LIBNAME) ../pyecsca/codegen/tommath/$(LIBNAME)
+
 stm32f0: CROSS_COMPILE=arm-none-eabi-
 stm32f0: CFLAGS=-mcpu=cortex-m0 -mthumb -mfloat-abi=soft -ffunction-sections -DMP_NO_DEV_URANDOM -DMP_32BIT -DMP_LOW_MEM -DMP_DEFAULT_DIGIT_COUNT=10
 stm32f0: LDFLAGS=--specs=nano.specs --specs=nosys.specs -T ../pyecsca/codegen/hal/stm32f0/LinkerScript.ld -Wl,--gc-sections -lm -mthumb -mcpu=cortex-m0
@@ -45,4 +56,4 @@ stm32f3: tommath_dir tommath_headers
 	$(MAKE) -C libtommath
 	cp libtommath/$(LIBNAME) ../pyecsca/codegen/tommath/$(LIBNAME)
 
-.PHONY: all host stm32f0 stm32f3 tommath_dir tommath_headers help clean
+.PHONY: all host nano stm32f0 stm32f3 tommath_dir tommath_headers help clean
