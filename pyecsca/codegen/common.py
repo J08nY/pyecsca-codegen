@@ -19,6 +19,7 @@ class Platform(EnumDefine):
     XMEGA = "CW308_XMEGA"
     STM32F0 = "CW308_STM32F0"
     STM32F3 = "CW308_STM32F3"
+    NANO = "CWNANO"
 
 
 @public

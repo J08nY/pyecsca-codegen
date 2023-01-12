@@ -23,8 +23,9 @@ void platform_init(void);
 
 #define HAL_xmega   1
 #define HAL_stm32f0 2
-#define HAL_stm32f3 3
-#define HAL_host    4
+#define HAL_stm32f0_nano 3
+#define HAL_stm32f3 4
+#define HAL_host    5
 
 #if HAL == HAL_xmega
     #include <avr/io.h>
@@ -32,6 +33,8 @@ void platform_init(void);
     #include "xmega/xmega_hal.h"
     #include "xmega/avr_compiler.h"
 #elif HAL == HAL_stm32f0
+    #include "stm32f0/stm32f0_hal.h"
+#elif HAL == HAL_stm32f0_nano
     #include "stm32f0/stm32f0_hal.h"
 #elif HAL == HAL_stm32f3
     #include "stm32f3/stm32f3_hal.h"
