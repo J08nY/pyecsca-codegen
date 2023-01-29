@@ -23,6 +23,13 @@ from .common import wrap_enum, Platform, get_model, get_coords
 
 
 class Triggers(IntFlag):
+    """
+    Actions that the implementation can trigger on.
+
+    Given that this is a bit-flag, multiple choices are
+    allowed, in which case the trigger signal will toggle
+    onn each action entry/exit.
+    """
     add = 1 << 0
     dadd = 1 << 1
     dbl = 1 << 2
@@ -40,6 +47,10 @@ class Triggers(IntFlag):
 
 
 def encode_scalar(val: Union[int, Mod]) -> bytes:
+    """
+    Encode a scalar value (int or Mod) into bytes,
+    such that the implementation can load them.
+    """
     if isinstance(val, int):
         return val.to_bytes((val.bit_length() + 7) // 8, "big")
     elif isinstance(val, Mod):
@@ -48,12 +59,27 @@ def encode_scalar(val: Union[int, Mod]) -> bytes:
 
 
 def encode_point(point: Point) -> Mapping:
+    """
+    Encode point coordinates.
+    """
     if isinstance(point, InfinityPoint):
         return {"n": bytes([1])}
     return {var: encode_scalar(value) for var, value in point.coords.items()}
 
 
 def encode_data(name: Optional[str], structure: Union[Mapping, bytes]) -> bytes:
+    """
+    Encode `structure` into the format used by the implementation command
+    parsing (see <docs/commands.rst>) and give it a `name`.
+
+    The format uses a tree of name-length-value nodes that is serialized
+    one after another (and can be easily parsed out recursively). This function
+    expects the `structure` to be either:
+      - bytes, in which case this is a leaf node and the function will just
+      create the name-length-value entry encoding.
+      - Mapping, in which case this function will recursively encode the
+      entries in the mapping.
+    """
     if isinstance(structure, bytes):
         if name is None:
             raise ValueError
@@ -68,6 +94,17 @@ def encode_data(name: Optional[str], structure: Union[Mapping, bytes]) -> bytes:
 
 
 def decode_data(data: bytes) -> Mapping:
+    """
+    Decode the `data` in the format used by the implementation command
+    parsing.
+
+    The format uses a tree of name-length-value nodes, this tree is
+    deserialized and turned into a Mapping by this function. However,
+    as the format does not hold any information about the data type
+    (only its name, length and value) this function does not decode
+    the byte values (i.e. decoding an encoding of a scalar will
+    result in a Mapping with bytes on the output, not an int or a Mod).
+    """
     result = {}
     parsed = 0
     while parsed < len(data):
@@ -150,6 +187,15 @@ def cmd_debug() -> str:
 
 
 class ImplTarget(SimpleSerialTarget):
+    """
+    A target that is based on an implementation built by pyecsca-codegen.
+
+    This is an abstract class that uses the send_cmd method on the SimpleSerialTarget
+    class to send commands to the target. That class in turn requires one to
+    implement the read/write/connect/disconnect methods that communicate with the
+    target somehow. See `DeviceTarget` that uses `ChipWhispererTarget` for thar purpose,
+    or `HostTarget` that uses `BinaryTarget`.
+    """
     model: CurveModel
     coords: CoordinateModel
     seed: Optional[bytes]
@@ -243,6 +289,9 @@ class ImplTarget(SimpleSerialTarget):
 
 @public
 class DeviceTarget(ImplTarget, ChipWhispererTarget):  # pragma: no cover
+    """
+    A ChipWhisperer-based device target.
+    """
 
     def __init__(self, model: CurveModel, coords: CoordinateModel, platform: Platform, **kwargs):
         scope = cw.scope()
@@ -259,6 +308,10 @@ class DeviceTarget(ImplTarget, ChipWhispererTarget):  # pragma: no cover
 
 @public
 class HostTarget(ImplTarget, BinaryTarget):
+    """
+    A host-based target, will just run the binary on your machine and communicate
+    with it via stdin/stdout.
+    """
 
     def __init__(self, model: CurveModel, coords: CoordinateModel, **kwargs):
         super().__init__(model, coords, **kwargs)
@@ -372,6 +425,7 @@ def ecdh(ctx: click.Context, curve, pubkey):
 def ecdsa_sign(ctx: click.Context, curve):
     ctx.ensure_object(dict)
     # TODO
+    click.echo("Not implemented.")
 
 
 @main.command("ecdsa-verify")
@@ -381,6 +435,7 @@ def ecdsa_sign(ctx: click.Context, curve):
 def ecdsa_verify(ctx: click.Context, curve):
     ctx.ensure_object(dict)
     # TODO
+    click.echo("Not implemented.")
 
 
 if __name__ == "__main__":
