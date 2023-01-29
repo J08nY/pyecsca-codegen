@@ -29,6 +29,13 @@ env.globals["isinstance"] = isinstance
 
 
 def render_op(op: OpType, result: str, left: str, right: str, mod: str, red: str) -> Optional[str]:
+    """
+    Render an operation `op` (add, sub, neg, ...) into a C string.
+
+    The operation will use `left` (optional) and `right` operands, be over `mod` modulus,
+    use the `red` reduction context and leave the result in `result`. All of these need to
+    be valid C variable names.
+    """
     if op == OpType.Add:
         return "bn_red_add(&{}, &{}, &{}, &{}, &{});".format(left, right, mod, red, result)
     elif op == OpType.Sub:
@@ -54,11 +61,22 @@ env.globals["render_op"] = render_op
 
 
 def render_defs(model: CurveModel, coords: CoordinateModel) -> str:
+    """
+    Render the defs.h file with definitions of the curve and point structures.
+
+    These change depending on the number (and name) of curve parameters and number
+    (and name) of point coordinates.
+    """
     return env.get_template("defs.h").render(params=model.parameter_names,
                                              variables=coords.variables)
 
 
 def render_curve_impl(model: CurveModel) -> str:
+    """
+    Render the defs.h file with basic curve operations.
+
+    These change depending on the number (and name) of curve parameters.
+    """
     return env.get_template("curve.c").render(params=model.parameter_names)
 
 
@@ -183,6 +201,7 @@ def render_action() -> str:
 def render_rand() -> str:
     return env.get_template("rand.c").render()
 
+
 def render_main(model: CurveModel, coords: CoordinateModel, keygen: bool, ecdh: bool,
                 ecdsa: bool) -> str:
     return env.get_template("main.c").render(model=model, coords=coords,
@@ -206,9 +225,10 @@ def save_render(dir: str, fname: str, rendered: str):
 @public
 def render(config: DeviceConfiguration) -> Tuple[str, str, str]:
     """
+    Render the `config` into a temporary directory.
 
-    :param config:
-    :return:
+    :param config: The configuration to render.
+    :return: The temporary directory, the elf-file name, the hex-file name.
     """
     temp = tempfile.mkdtemp()
     symlinks = ["asn1", "bn", "hal", "hash",  "prng", "simpleserial", "tommath", "fat.h",
@@ -240,14 +260,15 @@ def render(config: DeviceConfiguration) -> Tuple[str, str, str]:
 def build(dir: str, elf_file: str, hex_file: str, outdir: str, strip: bool = False,
           remove: bool = True) -> subprocess.CompletedProcess:
     """
+    Build a rendered configuration.
 
-    :param dir:
-    :param elf_file:
-    :param hex_file:
-    :param outdir:
-    :param strip:
-    :param remove:
-    :return:
+    :param dir: Directory with a rendered implementation.
+    :param elf_file: Elf-file name.
+    :param hex_file: Hex-file name.
+    :param outdir: Output directory to copy the elf and hex files into.
+    :param strip: Whether to strip the resulting binary of debug symbols.
+    :param remove: Whether to remove the original directory after build.
+    :return: The subprocess that ran the build (make).
     """
     res = subprocess.run(["make"], cwd=dir, capture_output=True)
     if res.returncode != 0:
@@ -268,12 +289,13 @@ def build(dir: str, elf_file: str, hex_file: str, outdir: str, strip: bool = Fal
 def render_and_build(config: DeviceConfiguration, outdir: str, strip: bool = False,
                      remove: bool = True) -> Tuple[str, str, str, subprocess.CompletedProcess]:
     """
+    Render and build a `config` in one go.
 
-    :param config:
-    :param outdir:
-    :param strip:
-    :param remove:
-    :return:
+    :param config: The configuration to build.
+    :param outdir: Output directory to copy the elf and hex files into.
+    :param strip: Whether to strip the resulting binary of debug symbols.
+    :param remove: Whether to remove the original directory after build.
+    :return: The subprocess that ran the build (make).
     """
     dir, elf_file, hex_file = render(config)
     res = build(dir, elf_file, hex_file, outdir, strip, remove)
