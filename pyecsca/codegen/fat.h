@@ -3,6 +3,9 @@
 
 #include <stdlib.h>
 
+/**
+ * A fat pointer type that knows its own length.
+ */
 typedef struct {
 	uint32_t len;
 	void *value;

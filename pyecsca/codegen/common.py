@@ -25,6 +25,8 @@ class Platform(EnumDefine):
 @public
 @dataclass(frozen=True)
 class DeviceConfiguration(Configuration):
+    """A device configuration that includes the platform and choices
+    specific to the pyecsca-codegened implementations."""
     platform: Platform
     keygen: bool
     ecdh: bool
@@ -81,6 +83,7 @@ def wrap_enum(enum_class: Type[EnumDefine]):
 
 
 def get_model(ctx: click.Context, param, value: str) -> CurveModel:
+    """A click callback func for model setup."""
     if value is None:
         return None
     classes = {
@@ -96,6 +99,7 @@ def get_model(ctx: click.Context, param, value: str) -> CurveModel:
 
 
 def get_coords(ctx: click.Context, param, value: Optional[str]) -> Optional[CoordinateModel]:
+    """A click callback func for coordinate setup."""
     if value is None:
         return None
     ctx.ensure_object(dict)
