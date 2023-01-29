@@ -25,6 +25,16 @@ static bn_t privkey;
 
 static curve_t *curve;
 
+/**
+ * \Brief Parse `data` structure of length `len`. This is used to parse the encoded payload of
+ * SimpleSerial commands as described in https://github.com/J08nY/pyecsca-codegen/blob/master/docs/commands.rst.
+ *
+ * As the *encoded payload* can form a tree structure of name-length-value entries, this function
+ * recursively walks it and calls the `callback` function when it reaches the leaves, giving
+ * the callback the `path` to the leaf (all of the names collected along the path from the root)
+ * as a null terminated string, the `data` of the leaf value, the `length` of the leaf value and
+ * the `callback_arg` as given to the original function.
+ */
 static size_t parse_data(const uint8_t *data, size_t len, const char *path, void(*callback)(const char *path, const uint8_t *data, size_t len, void *arg), void *callback_arg) {
 	size_t parsed = 0;
 	while (parsed < len) {
@@ -53,11 +63,19 @@ static size_t parse_data(const uint8_t *data, size_t len, const char *path, void
 	return parsed;
 }
 
+/**
+ * "Command": Initialize the Keccak-based PRNG used by the implementation.
+ */
 static uint8_t cmd_init_prng(uint8_t *data, uint16_t len) {
     prng_seed(data, len);
     return 0;
 }
 
+/**
+ * Callback function to `parse_data` that is used for the set_params
+ * command and that loads curve parameters from the command data and
+ * sets them on the `curve` used by the implementation.
+ */
 static void parse_set_params(const char *path, const uint8_t *data, size_t len, void *arg) {
 	if (strlen(path) == 1) {
 		switch (*path) {
@@ -97,8 +115,11 @@ static void parse_set_params(const char *path, const uint8_t *data, size_t len, 
 	{%- endfor %}
 }
 
+/**
+ * "Command": Set curve parameters.
+ */
 static uint8_t cmd_set_params(uint8_t *data, uint16_t len) {
-	// need p, [params], n, h, g[xy], i[variables]
+    // need p, [params], n, h, g[xy], i[variables]
 	fat_t affine[2] = {fat_empty, fat_empty};
 	parse_data(data, len, "", parse_set_params, (void *) affine);
 	if (!curve->neutral->infinity) {
@@ -120,8 +141,11 @@ static uint8_t cmd_set_params(uint8_t *data, uint16_t len) {
 	return 0;
 }
 
+/**
+ * "Command": Generate a keypair on a curve (needs an initialized
+ * PRNG and a curve setup), replies with the privkey and affine pubkey.
+ */
 static uint8_t cmd_generate(uint8_t *data, uint16_t len) {
-	// generate a keypair, export privkey and affine pubkey
 	{{ start_action("keygen") }}
 	bn_rand_mod(&privkey, &curve->n);
 	size_t priv_size = bn_to_bin_size(&privkey);
@@ -151,6 +175,10 @@ static uint8_t cmd_generate(uint8_t *data, uint16_t len) {
 	return 0;
 }
 
+/**
+ * Callback function for `parse_data` that sets the private key
+ * from command data.
+ */
 static void parse_set_privkey(const char *path, const uint8_t *data, size_t len, void *arg) {
 	if (strcmp(path, "s") == 0) {
 		bn_from_bin(data, len, &privkey);
@@ -158,12 +186,18 @@ static void parse_set_privkey(const char *path, const uint8_t *data, size_t len,
 	}
 }
 
+/**
+ * "Command": Set the privkey to some value.
+ */
 static uint8_t cmd_set_privkey(uint8_t *data, uint16_t len) {
-	// set the current privkey
 	parse_data(data, len, "", parse_set_privkey, NULL);
 	return 0;
 }
 
+/**
+ * Callback function for `parse_data` that extracts the public key
+ * from command data.
+ */
 static void parse_set_pubkey(const char *path, const uint8_t *data, size_t len, void *arg) {
 	fat_t *affine = (fat_t *) arg;
 	if (strcmp(path, "wx") == 0) {
@@ -180,8 +214,10 @@ static void parse_set_pubkey(const char *path, const uint8_t *data, size_t len, 
 	}
 }
 
+/**
+ * "Command": Set the public key to some value.
+ */
 static uint8_t cmd_set_pubkey(uint8_t *data, uint16_t len) {
-	// set the current pubkey
 	fat_t affine[2] = {fat_empty, fat_empty};
 	parse_data(data, len, "", parse_set_pubkey, (void *) affine);
 	bn_t x; bn_init(&x);
@@ -199,6 +235,10 @@ static uint8_t cmd_set_pubkey(uint8_t *data, uint16_t len) {
 	return 0;
 }
 
+/**
+ * Callback function to `parse_data` that extracts the point and
+ * scalar for scalar mult from command data.
+ */
 static void parse_scalar_mult(const char *path, const uint8_t *data, size_t len, void *arg) {
 	fat_t *affine = (fat_t *) arg;
 	if (strcmp(path, "wx") == 0) {
@@ -219,8 +259,11 @@ static void parse_scalar_mult(const char *path, const uint8_t *data, size_t len,
 	}
 }
 
+/**
+ * "Command": Perform scalar multiplication of a given point and a given scalar,
+ * replies with the result.
+ */
 static uint8_t cmd_scalar_mult(uint8_t *data, uint16_t len) {
-	// perform base point scalar mult with supplied scalar.
 	bn_t scalar; bn_init(&scalar);
 	point_t *other = point_new();
 	fat_t affine[3] = {fat_empty, fat_empty, {0, (void *) &scalar}};
@@ -255,6 +298,9 @@ static uint8_t cmd_scalar_mult(uint8_t *data, uint16_t len) {
 	return 0;
 }
 
+/**
+ * Callback function to `parse_data` that extracts a point from command data.
+ */
 static void parse_ecdh(const char *path, const uint8_t *data, size_t len, void *arg) {
 	fat_t *affine = (fat_t *) arg;
 	if (strcmp(path, "wx") == 0) {
@@ -271,8 +317,11 @@ static void parse_ecdh(const char *path, const uint8_t *data, size_t len, void *
 	}
 }
 
+/**
+ * "Command": Perform ECDH with a given public key (point) and reply with the
+ * shared secret hash.
+ */
 static uint8_t cmd_ecdh(uint8_t *data, uint16_t len) {
-	//perform ECDH with provided point (and current privkey), output shared secret
 	{{ start_action("ecdh") }}
 	point_t *other = point_new();
 	fat_t affine[2] = {fat_empty, fat_empty};
@@ -322,6 +371,10 @@ static uint8_t cmd_ecdh(uint8_t *data, uint16_t len) {
 	return 0;
 }
 
+/**
+ * Callback function for `parse_data` that extracts a message for signing
+ * from command data.
+ */
 static void parse_ecdsa_msg(const char *path, const uint8_t *data, size_t len, void *arg) {
 	fat_t *dest = (fat_t *) arg;
 	if (strcmp(path, "d") == 0) {
@@ -332,6 +385,10 @@ static void parse_ecdsa_msg(const char *path, const uint8_t *data, size_t len, v
 	}
 }
 
+/**
+ * Callback function for `parse_data` that extracts a signature
+ * from command data.
+ */
 static void parse_ecdsa_sig(const char *path, const uint8_t *data, size_t len, void *arg) {
 	fat_t *dest = (fat_t *)arg;
 	if (strcmp(path, "s") == 0) {
@@ -342,8 +399,10 @@ static void parse_ecdsa_sig(const char *path, const uint8_t *data, size_t len, v
 	}
 }
 
+/**
+ * "Command": Perform an ECDSA signature over given data and reply with it.
+ */
 static uint8_t cmd_ecdsa_sign(uint8_t *data, uint16_t len) {
-	//perform ECDSA signature on supplied data, output signature
 	{{ start_action("ecdsa_sign") }}
 	fat_t msg = fat_empty;
 	parse_data(data, len, "", parse_ecdsa_msg, (void *) &msg);
@@ -403,8 +462,10 @@ static uint8_t cmd_ecdsa_sign(uint8_t *data, uint16_t len) {
 	return 0;
 }
 
+/**
+ * "Command": Verify a given ECDSA signature over given data and reply with the result.
+ */
 static uint8_t cmd_ecdsa_verify(uint8_t *data, uint16_t len) {
-	//perform ECDSA verification on supplied data and signature (and current pubkey), output status
 	{{ start_action("ecdsa_verify") }}
 	fat_t msg = fat_empty;
 	parse_data(data, len, "", parse_ecdsa_msg, (void *) &msg);
@@ -473,6 +534,10 @@ static uint8_t cmd_ecdsa_verify(uint8_t *data, uint16_t len) {
 	return 0;
 }
 
+/**
+ * "Command": Reply with a string specifying the curve model and coordinate system
+ * used in the implementation.
+ */
 static uint8_t cmd_debug(uint8_t *data, uint16_t len) {
 	char *debug_string = "{{ ','.join((model.shortname, coords.name))}}";
 	size_t debug_len = strlen(debug_string);
@@ -483,6 +548,10 @@ static uint8_t cmd_debug(uint8_t *data, uint16_t len) {
 	return 0;
 }
 
+/**
+ * "Command": Set the trigger vector to a given value (enables/disables triggering
+ * for different actions).
+ */
 static uint8_t cmd_set_trigger(uint8_t *data, uint16_t len) {
 	uint32_t vector = data[0] | data[1] << 8 | data[2] << 16 | data[3] << 24;
 	action_set(vector);
@@ -491,18 +560,22 @@ static uint8_t cmd_set_trigger(uint8_t *data, uint16_t len) {
 }
 
 int main(void) {
+    // Initalize the platform, UART, triggers.
 	platform_init();
     init_uart();
     trigger_setup();
 
+    // Initialize some components that preallocate stuff.
     prng_init();
     formulas_init();
     math_init();
 
+    // Allocate space for the curve, pubkey and privkey.
     curve = curve_new();
     pubkey = point_new();
     bn_init(&privkey);
 
+    // Add the SimpleSerial commands.
     simpleserial_init();
     simpleserial_addcmd('i', MAX_SS_LEN, cmd_init_prng);
     simpleserial_addcmd('c', MAX_SS_LEN, cmd_set_params);
@@ -522,10 +595,12 @@ int main(void) {
     simpleserial_addcmd('t', MAX_SS_LEN, cmd_set_trigger);
     simpleserial_addcmd('d', MAX_SS_LEN, cmd_debug);
 
+    // Execute commands while SimpleSerial is alive.
 	//led_ok(1);
     while(simpleserial_get());
     //led_ok(0);
 
+    // Clear up allocated stuff.
     bn_clear(&privkey);
     curve_free(curve);
     point_free(pubkey);
