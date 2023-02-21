@@ -559,7 +559,7 @@ static uint8_t cmd_set_trigger(uint8_t *data, uint16_t len) {
 	return 0;
 }
 
-void init(void) {
+__attribute__((noinline)) void init(void) {
 	// Initalize the platform, UART, triggers.
 	platform_init();
     init_uart();
@@ -576,7 +576,7 @@ void init(void) {
     bn_init(&privkey);
 }
 
-void deinit(void) {
+__attribute__((noinline)) void deinit(void) {
 	// Clear up allocated stuff.
     bn_clear(&privkey);
     curve_free(curve);
