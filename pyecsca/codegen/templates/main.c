@@ -559,8 +559,8 @@ static uint8_t cmd_set_trigger(uint8_t *data, uint16_t len) {
 	return 0;
 }
 
-int main(void) {
-    // Initalize the platform, UART, triggers.
+void init(void) {
+	// Initalize the platform, UART, triggers.
 	platform_init();
     init_uart();
     trigger_setup();
@@ -574,6 +574,18 @@ int main(void) {
     curve = curve_new();
     pubkey = point_new();
     bn_init(&privkey);
+}
+
+void deinit(void) {
+	// Clear up allocated stuff.
+    bn_clear(&privkey);
+    curve_free(curve);
+    point_free(pubkey);
+    formulas_clear();
+}
+
+int main(void) {
+	init();
 
     // Add the SimpleSerial commands.
     simpleserial_init();
@@ -600,10 +612,6 @@ int main(void) {
     while(simpleserial_get());
     //led_ok(0);
 
-    // Clear up allocated stuff.
-    bn_clear(&privkey);
-    curve_free(curve);
-    point_free(pubkey);
-    formulas_clear();
+	deinit();
     return 0;
 }
