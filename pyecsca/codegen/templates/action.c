@@ -1,4 +1,7 @@
 {% macro start_action(action) %}
+    {#  // Macro for starting a given "action".
+        // If the trigger is setup to fire on that action
+        // then this will toggle the trigger value. #}
 	{% if action == "add" %}
 		action_start((uint32_t) (1 << 0));
 	{% elif action == "dadd" %}
@@ -31,6 +34,9 @@
 {%- endmacro %}
 
 {% macro end_action(action) %}
+    {#  // Macro for ending a given "action".
+        // If the trigger is setup to fire on that action
+        // then this will toggle the trigger value. #}
 	{% if action == "add" %}
 		action_end((uint32_t) (1 << 0));
 	{% elif action == "dadd" %}

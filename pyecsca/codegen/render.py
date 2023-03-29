@@ -2,7 +2,6 @@ import os
 import shutil
 import subprocess
 import tempfile
-from _ast import Pow
 from os import path
 from os import makedirs
 from typing import Optional, List, Set, Mapping, MutableMapping, Any, Tuple
@@ -82,6 +81,13 @@ def render_curve_impl(model: CurveModel) -> str:
 
 def transform_ops(ops: List[CodeOp], parameters: List[str], outputs: Set[str],
                   renames: Mapping[str, str] = None) -> MutableMapping[Any, Any]:
+    """
+    Transform a list of CodeOps, parameters, outputs and renames into a mapping
+    that will be used by the ops template macros to render the ops.
+
+    This tracks allocations and frees, also creates a mapping of constants
+    to variable names
+    """
     def rename(name: str):
         if renames is not None and name not in outputs:
             return renames.get(name, name)
@@ -100,21 +106,27 @@ def transform_ops(ops: List[CodeOp], parameters: List[str], outputs: Set[str],
             if param not in allocations and param not in parameters:
                 raise ValueError("Should be allocated or parameter: {}".format(param))
         for const in op.constants:
-            name = "c" + str(const)
+            if op.operator == OpType.Pow:
+                name = "cu" + str(const)
+                encode = False
+            else:
+                name = "c" + str(const)
+                encode = True
             if name not in allocations:
                 allocations.append(name)
-                initializations[name] = const
-                const_mapping[const] = name
+                initializations[name] = (const, encode)
+                const_mapping[(const, encode)] = name
                 frees.append(name)
         operations.append((op.operator, op.result, rename(op.left), rename(op.right)))
     mapped = []
     for op in operations:
         o2 = op[2]
-        if o2 in const_mapping:
-            o2 = const_mapping[o2]
+        if (o2, True) in const_mapping:
+            o2 = const_mapping[(o2, True)]
         o3 = op[3]
-        if o3 in const_mapping and not (isinstance(op[0], Pow) and o3 == 2):
-            o3 = const_mapping[o3]
+        o3_enc = op[0] != OpType.Pow
+        if (o3, o3_enc) in const_mapping:
+            o3 = const_mapping[(o3, o3_enc)]
         mapped.append((op[0], op[1], o2, o3))
     returns = {}
     if renames:

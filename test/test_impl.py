@@ -1,4 +1,3 @@
-from binascii import hexlify
 from copy import copy
 from os.path import join
 from unittest import TestCase
@@ -7,7 +6,6 @@ from click.testing import CliRunner
 from pyecsca.ec.params import get_params
 from pyecsca.ec.key_agreement import ECDH_SHA1
 from pyecsca.ec.mult import LTRMultiplier, RTLMultiplier, CoronMultiplier, BinaryNAFMultiplier
-from pyecsca.ec.point import Point
 from pyecsca.ec.signature import ECDSA_SHA1, SignatureResult
 
 from pyecsca.codegen.builder import build_impl
@@ -30,7 +28,8 @@ class ImplTests(TestCase):
         other_args = [
             ("--mul", "KARATSUBA", "--sqr", "KARATSUBA"),
             ("--mul", "TOOM_COOK", "--sqr", "TOOM_COOK"),
-            ("--red", "BARRETT")
+            ("--red", "BARRETT"),
+            ("--red", "MONTGOMERY")
         ]
         for additional in other_args:
             with runner.isolated_filesystem() as tmpdir:
@@ -83,12 +82,15 @@ class SetupTests(ImplTests):
 
     def test_debug(self):
         runner = CliRunner()
+
         def callback(target, mult, params):
             model, coords = target.debug()
             self.assertEqual(model, params.curve.model.shortname)
             self.assertEqual(coords, params.curve.coordinate_model.name)
+
         self.do_basic_test(callback, runner, self.secp128r1, LTRMultiplier,
                            ["add-1998-cmo", "dbl-1998-cmo"], "ltr", False, False, complete=False)
+
 
 class KeyGenerationTests(ImplTests):
 
@@ -233,7 +235,6 @@ class ECDSATests(ImplTests):
             priv, pub = target.generate()
             ecdsa = ECDSA_SHA1(copy(mult), params, mult.formulas["add"],
                                pub.to_model(params.curve.coordinate_model, params.curve), priv)
-
 
             signature_data = target.ecdsa_sign(data)
             result = SignatureResult.from_DER(signature_data)
