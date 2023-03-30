@@ -86,7 +86,7 @@ def transform_ops(ops: List[CodeOp], parameters: List[str], outputs: Set[str],
     that will be used by the ops template macros to render the ops.
 
     This tracks allocations and frees, also creates a mapping of constants
-    to variable names
+    to variable names.
     """
     def rename(name: str):
         if renames is not None and name not in outputs:
@@ -98,6 +98,11 @@ def transform_ops(ops: List[CodeOp], parameters: List[str], outputs: Set[str],
     const_mapping = {}
     operations = []
     frees = []
+    # Go over the ops, track allocations needed for intermediates and constants.
+    # There are two kinds of constants, encoded and not-encoded. The encoded
+    # ones are default, the non-encoded ones are only in the exponents, where
+    # you don't want to encode using the reduction object (i.e. Montgomery form).
+    # Also constructs a mapping from raw constants to their variable names.
     for op in ops:
         if op.result not in allocations:
             allocations.append(op.result)
@@ -119,6 +124,8 @@ def transform_ops(ops: List[CodeOp], parameters: List[str], outputs: Set[str],
                 frees.append(name)
         operations.append((op.operator, op.result, rename(op.left), rename(op.right)))
     mapped = []
+    # Go over the operations and map constants to their variable names,
+    # make sure the encoded/non-encoded version is used where appropriate.
     for op in operations:
         o2 = op[2]
         if (o2, True) in const_mapping:
@@ -129,6 +136,7 @@ def transform_ops(ops: List[CodeOp], parameters: List[str], outputs: Set[str],
             o3 = const_mapping[(o3, o3_enc)]
         mapped.append((op[0], op[1], o2, o3))
     returns = {}
+    # Handle renames in the returns.
     if renames:
         for r_from, r_to in renames.items():
             if r_from in outputs:
@@ -138,12 +146,6 @@ def transform_ops(ops: List[CodeOp], parameters: List[str], outputs: Set[str],
                 initializations=initializations,
                 const_mapping=const_mapping, operations=mapped,
                 frees=frees, returns=returns)
-
-
-def render_ops(ops: List[CodeOp], parameters: List[str], outputs: Set[str],
-               renames: Mapping[str, str] = None) -> str:
-    namespace = transform_ops(ops, parameters, outputs, renames)
-    return env.get_template("ops.c").render(namespace)
 
 
 def render_coords_impl(coords: CoordinateModel) -> str:
