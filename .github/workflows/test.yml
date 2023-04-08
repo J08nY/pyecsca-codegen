@@ -1,0 +1,54 @@
+name: Test
+
+on: [push, pull_request]
+
+env:
+  LLVM_CONFIG: /usr/bin/llvm-config-10
+  OTHER_PACKAGES: swig gcc libpcsclite-dev llvm-10 libllvm10 llvm-10-dev
+
+jobs:
+  test:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10"]
+    env:
+      PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ matrix.gmp }}-${{ matrix.python-version }}-${{ hashFiles('setup.py') }}
+          restore-keys: |
+            pip-${{ runner.os }}-${{ matrix.gmp }}-${{ matrix.python-version }}-
+            pip-${{ runner.os }}-${{ matrix.gmp }}-
+            pip-${{ runner.os }}-
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y $OTHER_PACKAGES
+      - name: Build libtommath
+        run: |
+          cd ext && make host && cd ..
+      - name: Install dependencies
+        run: |
+          pip install -U pip setuptools wheel
+      - name: Install pyecsca
+        run: |
+          git clone https://github.com/J08nY/pyecsca pyecsca-upstream && cd pyecsca-upstream && git submodule update --init && pip install -e ".[chipwhisperer, test, dev]" && cd ..
+      - name: Install pyecsca-codegen
+        run: |
+          pip install -e ".[test, dev]"
+      - name: Test
+        run: |
+          make test
+      - name: Code coverage
+        uses: codecov/codecov-action@v3
+        if: ${{ matrix.python-version == 3.9 }}

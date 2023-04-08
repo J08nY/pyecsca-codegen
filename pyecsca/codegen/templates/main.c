@@ -125,6 +125,9 @@ static uint8_t cmd_set_params(uint8_t *data, uint16_t len) {
 	if (!curve->neutral->infinity) {
 		point_red_encode(curve->neutral, curve);
 	}
+	{%- for param in curve_parameters %}
+	    bn_red_encode(&curve->{{ param }}, &curve->p, &curve->p_red);
+	{%- endfor %}
 
 	bn_t x; bn_init(&x);
 	bn_t y; bn_init(&y);

@@ -4,6 +4,9 @@
 {% import "ops.c" as ops %}
 {% from "action.c" import start_action, end_action %}
 
+/**
+ * Constructs (allocates) a new point.
+ */
 point_t *point_new(void) {
 	point_t *result = malloc(sizeof(point_t));
 	{%- for variable in variables %}
@@ -13,6 +16,9 @@ point_t *point_new(void) {
 	return result;
 }
 
+/**
+ * Creates a copy of a point.
+ */
 point_t *point_copy(const point_t *from) {
 	point_t *result = point_new();
 	point_set(from, result);

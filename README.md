@@ -1,18 +1,18 @@
 # pyecsca-codegen
 
-[![Build Status](https://travis-ci.com/J08nY/pyecsca-codegen.svg?branch=master)](https://travis-ci.com/J08nY/pyecsca-codegen) ![License: MIT](https://img.shields.io/github/license/J08nY/pyecsca.svg) [![codecov](https://codecov.io/gh/J08nY/pyecsca-codegen/branch/master/graph/badge.svg)](https://codecov.io/gh/J08nY/pyecsca-codegen)
+[![Test](https://github.com/J08nY/pyecsca-codegen/actions/workflows/test.yml/badge.svg)](https://github.com/J08nY/pyecsca-codegen/actions/workflows/test.yml) ![License: MIT](https://img.shields.io/github/license/J08nY/pyecsca.svg) [![codecov](https://codecov.io/gh/J08nY/pyecsca-codegen/branch/master/graph/badge.svg)](https://codecov.io/gh/J08nY/pyecsca-codegen)
 
 **Py**thon **E**lliptic **C**urve cryptography **S**ide-**C**hannel **A**nalysis toolkit.
 
 Codegen package. See the [main repo](https://github.com/J08nY/pyecsca) for more information.
 
-See [INSTALL](docs/INSTALL.md) for installation instructions.
+See [INSTALL](docs/install.rst) for installation instructions.
 
 ## License
 
     MIT License
 
-    Copyright (c) 2018-2020 Jan Jancar
+    Copyright (c) 2018-2023 Jan Jancar
     
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal

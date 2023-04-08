@@ -16,9 +16,11 @@
 {%- endmacro %}
 
 {% macro render_initializations(initializations) -%}
-	{%- for init, value in initializations.items() %}
+	{%- for init, (value, encode) in initializations.items() %}
 		bn_from_int({{ value }}, &{{ init }});
-		bn_red_encode(&{{ init }}, &curve->p, &curve->p_red);
+		{%- if encode %}
+		    bn_red_encode(&{{ init }}, &curve->p, &curve->p_red);
+		{%- endif %}
 	{%- endfor %}
 {%- endmacro %}
 
