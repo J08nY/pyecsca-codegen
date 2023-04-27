@@ -36,7 +36,8 @@ setup(
             "fastdtw",
             "asn1crypto",
             "jinja2",
-            "Click"
+            "Click",
+            "rainbow @ git+https://github.com/J08nY/rainbow@main"
         ],
         extras_require={
             "dev": ["mypy", "flake8"],
