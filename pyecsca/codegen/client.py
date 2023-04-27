@@ -22,7 +22,7 @@ from pyecsca.sca.target import (Target, SimpleSerialTarget, ChipWhispererTarget,
 from .common import wrap_enum, Platform, get_model, get_coords
 
 from rainbow.devices import rainbow_stm32f215
-from rainbow import TraceConfig, HammingWeight
+from rainbow import TraceConfig, Print
 
 
 class Triggers(IntFlag):
@@ -199,11 +199,15 @@ class SimulatorTarget(Target):
     params: Optional[DomainParameters]
     privkey: Optional[int]
     pubkey: Optional[Point]
+    trace: list
 
-    def __init__(self, model: CurveModel, coords: CoordinateModel):
+    def __init__(self, model: CurveModel, coords: CoordinateModel, print_config: Print = Print(0), 
+                 trace_config: TraceConfig = TraceConfig(), allow_breakpoints: bool = False):
         super().__init__()
-        self.simulator = rainbow_stm32f215(allow_stubs=True)
+        self.simulator = rainbow_stm32f215(print_config=print_config, trace_config=trace_config,
+                                            allow_stubs=True, allow_breakpoints=allow_breakpoints)
         self.result = []
+        self.trace = []
         self.model = model
         self.coords = coords
         self.seed = None
@@ -219,6 +223,7 @@ class SimulatorTarget(Target):
         self.simulator['r0'] = data_adress
         self.simulator['r1'] = length
         self.simulator.start(self.simulator.functions[function] | 1, 0)
+        self.trace.extend(self.simulator.trace)
         self.simulator.reset()
 
     def hook_result(self, simulator) -> None:
@@ -230,7 +235,7 @@ class SimulatorTarget(Target):
         self.simulator.load(kwargs["binary"])
         self.simulator.setup()
         self.simulator.hook_bypass("simpleserial_put", self.hook_result)
-        self.simulator.start(self.simulator.functions['main'] | 1, 0)
+        self.simulator.start(self.simulator.functions['init_implementation'] | 1, 0) 
         self.simulator.reset()
 
     def set_params(self, params: DomainParameters) -> None:
@@ -242,13 +247,13 @@ class SimulatorTarget(Target):
         command = cmd_scalar_mult(scalar, point)
         self.__simulate(command, 'cmd_scalar_mult')
         res_adress = self.result[2]
-        res_length = self.result[1] // 3
-        x = int.from_bytes(self.simulator[res_adress: res_adress + res_length], 'big')
-        y = int.from_bytes(self.simulator[res_adress + res_length: res_adress + 2 * res_length], 'big')
-        res_point = Point(AffineCoordinateModel(self.model), x = Mod(x, self.params.curve.prime), 
-                    y = Mod(y, self.params.curve.prime))
+        point_length = self.result[1] // len(self.coords.variables)  
+        params = {var: Mod(int.from_bytes(self.simulator[res_adress + i * point_length:
+                                                         res_adress + (i + 1) * point_length], 'big'), 
+                                                         self.params.curve.prime)
+                  for i, var in enumerate(self.coords.variables)}
         self.result = []
-        return res_point
+        return Point(self.coords, **params)
 
     def init_prng(self, seed: bytes) -> None:
         command = cmd_init_prng(seed)
@@ -258,9 +263,9 @@ class SimulatorTarget(Target):
     def generate(self) -> Tuple[int, Point]:
         command = cmd_generate()
         self.__simulate(command, 'cmd_generate')
-        priv = int(hexlify(self.simulator[self.result[2]:self.result[2] + self.result[1]]) ,16)
-        pub_x = int(hexlify(self.simulator[self.result[5]:self.result[5] + self.result[4] // 2]), 16)
-        pub_y = int(hexlify(self.simulator[self.result[5] + self.result[4] // 2:self.result[5] + self.result[4]]) ,16)
+        priv = int.from_bytes(self.simulator[self.result[2]:self.result[2] + self.result[1]], 'big')
+        pub_x = int.from_bytes(self.simulator[self.result[5]:self.result[5] + self.result[4] // 2], 'big')
+        pub_y = int.from_bytes(self.simulator[self.result[5] + self.result[4] // 2:self.result[5] + self.result[4]] ,'big')
         self.result = []
         return priv, Point(AffineCoordinateModel(self.model), x = Mod(pub_x, self.params.curve.prime), 
                     y = Mod(pub_y, self.params.curve.prime))
@@ -303,7 +308,8 @@ class SimulatorTarget(Target):
         pass
 
     def disconnect(self):
-        pass
+        self.simulator.start(self.simulator.functions['deinit'] | 1, 0) 
+        self.simulator.reset()
 
 
 

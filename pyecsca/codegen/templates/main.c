@@ -568,6 +568,10 @@ __attribute__((noinline)) void init(void) {
     init_uart();
     trigger_setup();
 
+	init_implementation();
+}
+
+__attribute__((noinline)) void init_implementation(void) {
     // Initialize some components that preallocate stuff.
     prng_init();
     formulas_init();
