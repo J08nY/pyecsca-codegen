@@ -37,7 +37,7 @@ setup(
             "asn1crypto",
             "jinja2",
             "Click",
-            "rainbow @ git+https://github.com/J08nY/rainbow@main"
+            "rainbow @ git+https://github.com/J08nY/rainbow@master"
         ],
         extras_require={
             "dev": ["mypy", "flake8"],
