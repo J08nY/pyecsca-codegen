@@ -73,11 +73,7 @@ void init_uart(void)
 	__HAL_RCC_USART1_CLK_ENABLE();
 	__HAL_RCC_USART1_CONFIG(RCC_USART1CLKSOURCE_SYSCLK);
 	UartHandle.Instance        = USART1;
-  #if SS_VER==SS_VER_2_0
-  UartHandle.Init.BaudRate   = 230400;
-  #else
-  UartHandle.Init.BaudRate   = 38400;
-  #endif
+    UartHandle.Init.BaudRate   = 115200;
 	UartHandle.Init.WordLength = UART_WORDLENGTH_8B;
 	UartHandle.Init.StopBits   = UART_STOPBITS_1;
 	UartHandle.Init.Parity     = UART_PARITY_NONE;
@@ -91,15 +87,29 @@ static bool trig;
 void trigger_setup(void)
 {
 	__HAL_RCC_GPIOA_CLK_ENABLE();
-	
+
 	GPIO_InitTypeDef GpioInit;
 	GpioInit.Pin       = GPIO_PIN_7;
 	GpioInit.Mode      = GPIO_MODE_OUTPUT_PP;
 	GpioInit.Pull      = GPIO_NOPULL;
 	GpioInit.Speed     = GPIO_SPEED_FREQ_HIGH;
 	HAL_GPIO_Init(GPIOA, &GpioInit);
+
+	GpioInit.Pin       = GPIO_PIN_4;
+	GpioInit.Mode      = GPIO_MODE_OUTPUT_PP;
+	GpioInit.Pull      = GPIO_NOPULL;
+	GpioInit.Speed     = GPIO_SPEED_FREQ_HIGH;
+	HAL_GPIO_Init(GPIOA, &GpioInit);
+
+	GpioInit.Pin       = GPIO_PIN_2;
+	GpioInit.Mode      = GPIO_MODE_OUTPUT_PP;
+	GpioInit.Pull      = GPIO_NOPULL;
+	GpioInit.Speed     = GPIO_SPEED_FREQ_HIGH;
+	HAL_GPIO_Init(GPIOA, &GpioInit);
 	
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, RESET);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, SET);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, SET);
 	trig = false;
 }
 
@@ -126,7 +136,7 @@ void trigger_low(void)
 {
 	trig = false;
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, RESET);
-}   
+}
 
 char getch(void)
 {
