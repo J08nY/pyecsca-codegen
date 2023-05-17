@@ -54,17 +54,17 @@ uint32_t HAL_GetTick(void)
 #define UART_CR1_FIELDS  ((uint32_t)(USART_CR1_M | USART_CR1_PCE | USART_CR1_PS | \
                                      USART_CR1_TE | USART_CR1_RE | USART_CR1_OVER8)) /*!< UART or USART CR1 fields of parameters set by UART_SetConfig API */
 									 
-uint32_t SystemCoreClock = 7372800;
+uint32_t SystemCoreClock = F_CPU;
 
 
 uint32_t HAL_RCC_GetSysClockFreq(void)
 {
-	return 7372800U;
+	return F_CPU;
 }
 
 uint32_t HAL_RCC_GetPCLK1Freq(void)
 {
-	return 7372800U;
+	return F_CPU;
 }
 
 /**
@@ -77,7 +77,7 @@ uint32_t HAL_RCC_GetPCLK2Freq(void)
 {
   /* Get HCLK source and Compute PCLK2 frequency ---------------------------*/
   //return (HAL_RCC_GetHCLKFreq()>> APBPrescTable[(RCC->CFGR & RCC_CFGR_PPRE2)>> POSITION_VAL(RCC_CFGR_PPRE2)]);
-  return 7372800;
+  return F_CPU;
 }
 
 /**
