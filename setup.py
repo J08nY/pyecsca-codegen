@@ -5,7 +5,7 @@ setup(
         name='pyecsca-codegen',
         author='Jan Jancar',
         author_email='johny@neuromancer.sk',
-        version='0.1.0',
+        version='0.2.0',
         packages=find_namespace_packages(include=["pyecsca.*"]),
         license="MIT",
         description="Python Elliptic Curve cryptography Side Channel Analysis toolkit (codegen package).",
@@ -16,7 +16,10 @@ setup(
             "License :: OSI Approved :: MIT License",
             "Topic :: Security",
             "Topic :: Security :: Cryptography",
-            "Programming Language :: Python :: 3",
+            "Programming Language :: Python :: 3.8",
+            "Programming Language :: Python :: 3.9",
+            "Programming Language :: Python :: 3.10",
+            "Programming Language :: Python :: 3.11",
             "Intended Audience :: Developers",
             "Intended Audience :: Science/Research"
         ],
@@ -40,7 +43,7 @@ setup(
         ],
         extras_require={
             "dev": ["mypy", "flake8"],
-            "test": ["nose2", "parameterized","green", "coverage"]
+            "test": ["nose2", "parameterized", "green", "coverage"]
         },
         entry_points="""
             [console_scripts]
