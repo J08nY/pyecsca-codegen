@@ -304,7 +304,10 @@ class SimulatorTarget(Target):
     def set_strigger(self):
         pass
 
-    def debug(self):
+    def debug(self) -> Tuple[str, str]:
+        return self.model.shortname, self.coords.name
+
+    def quit(self):
         pass
 
     def disconnect(self):
