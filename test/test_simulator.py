@@ -100,7 +100,7 @@ class KeyGenerationTests(SimulatorTest):
 
     def do_keygen_test(self, runner, params, mult_class, formulas, mult_name):
         def callback(target, mult, params):
-            for _ in range(1):
+            for _ in range(3):
                 priv, pub = target.generate()
                 self.assertTrue(params.curve.is_on_curve(pub))
                 expected = mult.multiply(priv).to_affine()
@@ -132,8 +132,7 @@ class KeyGenerationTests(SimulatorTest):
 class ScalarMultiplicationTests(SimulatorTest):
 
     def do_mult_test(self, runner, params, mult_class, formulas, mult_name):
-        #values = [15, 2355498743, 3253857901321912443757746]
-        values = [15]
+        values = [15, 2355498743, 3253857901321912443757746]
 
         def callback(target, mult, params):
             for value in values:
@@ -166,8 +165,7 @@ class ScalarMultiplicationTests(SimulatorTest):
 
 class ECDHTests(SimulatorTest):
     def do_ecdh_test(self, runner, params, mult_class, formulas, mult_name):
-        #other_privs = [15, 2355498743, 3253857901321912443757746]
-        other_privs = [15]
+        other_privs = [15, 2355498743, 3253857901321912443757746]
 
         def callback(target, mult, params):
             for other_priv in other_privs:
