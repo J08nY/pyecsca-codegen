@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 env:
   LLVM_CONFIG: /usr/bin/llvm-config-10
-  OTHER_PACKAGES: swig gcc libpcsclite-dev llvm-10 libllvm10 llvm-10-dev
+  OTHER_PACKAGES: swig gcc libpcsclite-dev llvm-10 libllvm10 llvm-10-dev gcc-arm-none-eabi binutils-arm-none-eabi libnewlib-arm-none-eabi libnewlib-nano-arm-none-eabi
 
 jobs:
   test:
