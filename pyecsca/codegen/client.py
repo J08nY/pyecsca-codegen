@@ -16,10 +16,13 @@ from pyecsca.ec.mod import Mod
 from pyecsca.ec.model import CurveModel
 from pyecsca.ec.params import DomainParameters, get_params
 from pyecsca.ec.point import Point, InfinityPoint
-from pyecsca.sca.target import (SimpleSerialTarget, ChipWhispererTarget, BinaryTarget, Flashable,
+from pyecsca.sca.target import (Target, SimpleSerialTarget, ChipWhispererTarget, BinaryTarget, Flashable,
                                 SimpleSerialMessage as SMessage)
 
 from .common import wrap_enum, Platform, get_model, get_coords
+
+from rainbow.devices import rainbow_stm32f215
+from rainbow import TraceConfig, Print
 
 
 class Triggers(IntFlag):
@@ -184,6 +187,133 @@ def cmd_set_trigger(actions: Triggers) -> str:
 @public
 def cmd_debug() -> str:
     return "d"
+
+
+class SimulatorTarget(Target):
+
+    simulator: rainbow_stm32f215
+    result: list
+    model: CurveModel
+    coords: CoordinateModel
+    seed: Optional[bytes]
+    params: Optional[DomainParameters]
+    privkey: Optional[int]
+    pubkey: Optional[Point]
+    trace: list
+
+    def __init__(self, model: CurveModel, coords: CoordinateModel, print_config: Print = Print(0), 
+                 trace_config: TraceConfig = TraceConfig(), allow_breakpoints: bool = False):
+        super().__init__()
+        self.simulator = rainbow_stm32f215(print_config=print_config, trace_config=trace_config,
+                                            allow_stubs=True, allow_breakpoints=allow_breakpoints)
+        self.result = []
+        self.trace = []
+        self.model = model
+        self.coords = coords
+        self.seed = None
+        self.params = None
+        self.privkey = None
+        self.pubkey = None
+    
+    def __simulate(self, command: str, function: str) -> None:
+        data = unhexlify(command[1:])
+        length = len(data)
+        data_adress = 0xDEAD0000
+        self.simulator[data_adress] = data
+        self.simulator['r0'] = data_adress
+        self.simulator['r1'] = length
+        self.simulator.start(self.simulator.functions[function] | 1, 0)
+        self.trace.extend(self.simulator.trace)
+        self.simulator.reset()
+
+    def hook_result(self, simulator) -> None:
+        self.result.append(simulator['r0']) 
+        self.result.append(simulator['r1']) 
+        self.result.append(simulator['r2']) 
+
+    def connect(self, **kwargs) -> None:
+        self.simulator.load(kwargs["binary"])
+        self.simulator.setup()
+        self.simulator.hook_bypass("simpleserial_put", self.hook_result)
+        self.simulator.start(self.simulator.functions['init_implementation'] | 1, 0) 
+        self.simulator.reset()
+
+    def set_params(self, params: DomainParameters) -> None:
+        command = cmd_set_params(params)
+        self.__simulate(command, 'cmd_set_params')
+        self.params = params
+
+    def scalar_mult(self, scalar: int, point: Point) -> Point:
+        command = cmd_scalar_mult(scalar, point)
+        self.__simulate(command, 'cmd_scalar_mult')
+        res_adress = self.result[2]
+        point_length = self.result[1] // len(self.coords.variables)  
+        params = {var: Mod(int.from_bytes(self.simulator[res_adress + i * point_length:
+                                                         res_adress + (i + 1) * point_length], 'big'), 
+                                                         self.params.curve.prime)
+                  for i, var in enumerate(self.coords.variables)}
+        self.result = []
+        return Point(self.coords, **params)
+
+    def init_prng(self, seed: bytes) -> None:
+        command = cmd_init_prng(seed)
+        self.__simulate(command, 'cmd_init_prng')
+        self.seed = seed
+
+    def generate(self) -> Tuple[int, Point]:
+        command = cmd_generate()
+        self.__simulate(command, 'cmd_generate')
+        priv = int.from_bytes(self.simulator[self.result[2]:self.result[2] + self.result[1]], 'big')
+        pub_x = int.from_bytes(self.simulator[self.result[5]:self.result[5] + self.result[4] // 2], 'big')
+        pub_y = int.from_bytes(self.simulator[self.result[5] + self.result[4] // 2:self.result[5] + self.result[4]] ,'big')
+        self.result = []
+        return priv, Point(AffineCoordinateModel(self.model), x = Mod(pub_x, self.params.curve.prime), 
+                    y = Mod(pub_y, self.params.curve.prime))
+
+    def set_privkey(self, privkey: int) -> None:
+        command = cmd_set_privkey(privkey)
+        self.__simulate(command, 'cmd_set_privkey')
+        self.privkey = privkey
+
+    def set_pubkey(self, pubkey: Point) -> None:
+        command = cmd_set_pubkey(pubkey)
+        self.__simulate(command, 'cmd_set_pubkey')
+        self.pubkey = pubkey
+
+    def ecdh(self, other_pubkey: Point) -> bytes:
+        command = cmd_ecdh(other_pubkey)
+        self.__simulate(command, 'cmd_ecdh')
+        shared_secret = self.simulator[self.result[2]:self.result[2] + self.result[1]]
+        self.result = []
+        return shared_secret
+
+    def ecdsa_sign(self, data: bytes) -> bytes:
+        command = cmd_ecdsa_sign(data)
+        self.__simulate(command, 'cmd_ecdsa_sign')
+        signature = self.simulator[self.result[2]:self.result[2] + self.result[1]]
+        self.result = []
+        return signature
+
+    def ecdsa_verify(self, data: bytes, signature: bytes) -> bool:
+        command = cmd_ecdsa_verify(data, signature)
+        self.__simulate(command, 'cmd_ecdsa_verify')
+        res = self.simulator[self.result[2]:self.result[2] + self.result[1]]
+        self.result = []
+        return bool(int.from_bytes(res, 'big'))
+    
+    def set_strigger(self):
+        pass
+
+    def debug(self) -> Tuple[str, str]:
+        return self.model.shortname, self.coords.name
+
+    def quit(self):
+        pass
+
+    def disconnect(self):
+        self.simulator.start(self.simulator.functions['deinit'] | 1, 0) 
+        self.simulator.reset()
+
 
 
 class ImplTarget(SimpleSerialTarget):
