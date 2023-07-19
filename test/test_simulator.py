@@ -15,6 +15,7 @@ from pyecsca.ec.mod import Mod
 from pyecsca.ec.model import ShortWeierstrassModel
 from pyecsca.ec.params import DomainParameters
 from pyecsca.ec.point import InfinityPoint, Point
+import gc
 
 
 class SimulatorTest(TestCase):
@@ -56,6 +57,8 @@ class SimulatorTest(TestCase):
             mult.init(params, params.generator)
             callback(target, mult, params)
             target.disconnect()
+            del target
+            gc.collect()
 
 
 class PRNGTests(SimulatorTest):
