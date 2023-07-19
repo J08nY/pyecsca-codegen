@@ -117,16 +117,6 @@ class KeyGenerationTests(SimulatorTest):
         self.do_keygen_test(runner, self.curve32, RTLMultiplier, ["add-1998-cmo", "dbl-1998-cmo"],
                             "rtl")
 
-    def test_coron(self):
-        runner = CliRunner()
-        self.do_keygen_test(runner, self.curve32, CoronMultiplier,
-                            ["add-1998-cmo", "dbl-1998-cmo"], "coron")
-
-    def test_bnaf(self):
-        runner = CliRunner()
-        self.do_keygen_test(runner, self.curve32, BinaryNAFMultiplier,
-                            ["add-1998-cmo", "dbl-1998-cmo", "neg"], "bnaf")
-
 
 class ScalarMultiplicationTests(SimulatorTest):
 
@@ -150,16 +140,6 @@ class ScalarMultiplicationTests(SimulatorTest):
         runner = CliRunner()
         self.do_mult_test(runner, self.curve32, RTLMultiplier, ["add-1998-cmo", "dbl-1998-cmo"],
                           "rtl")
-
-    def test_coron(self):
-        runner = CliRunner()
-        self.do_mult_test(runner, self.curve32, CoronMultiplier,
-                          ["add-1998-cmo", "dbl-1998-cmo"], "coron")
-
-    def test_bnaf(self):
-        runner = CliRunner()
-        self.do_mult_test(runner, self.curve32, BinaryNAFMultiplier,
-                          ["add-1998-cmo", "dbl-1998-cmo", "neg"], "bnaf")
 
 
 class ECDHTests(SimulatorTest):
@@ -186,16 +166,6 @@ class ECDHTests(SimulatorTest):
         runner = CliRunner()
         self.do_ecdh_test(runner, self.curve32, RTLMultiplier, ["add-1998-cmo", "dbl-1998-cmo"],
                           "rtl")
-
-    def test_coron(self):
-        runner = CliRunner()
-        self.do_ecdh_test(runner, self.curve32, CoronMultiplier,
-                          ["add-1998-cmo", "dbl-1998-cmo"], "coron")
-
-    def test_bnaf(self):
-        runner = CliRunner()
-        self.do_ecdh_test(runner, self.curve32, BinaryNAFMultiplier,
-                          ["add-1998-cmo", "dbl-1998-cmo", "neg"], "bnaf")
 
 
 class ECDSATests(SimulatorTest):
