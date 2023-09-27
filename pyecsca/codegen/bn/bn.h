@@ -3,7 +3,7 @@
 
 #include <tommath.h>
 
-#define RED_MONTGOMERY   1 //TODO: Make Montgomery work!
+#define RED_MONTGOMERY   1
 #define RED_BARRET 		 2
 #define RED_BASE		 3
 

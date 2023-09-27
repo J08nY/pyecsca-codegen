@@ -1,0 +1,68 @@
+[build-system]
+  requires = ["setuptools>=61.0", "setuptools_scm[toml]>=8.0"]
+  build-backend = "setuptools.build_meta"
+
+[project]
+  name = "pyecsca-codegen"
+  version = "0.2.0"
+  authors = [
+    { name = "Jan Jancar", email = "johny@neuromancer.sk" }
+  ]
+  description = "Python Elliptic Curve cryptography Side Channel Analysis toolkit (codegen package)."
+  readme = "README.md"
+  license = { "text" = "MIT" }
+  classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Security",
+    "Topic :: Security :: Cryptography",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research"
+  ]
+  requires-python = ">=3.8"
+  dependencies = [
+    "pyecsca",
+    "chipwhisperer",
+    "numpy",
+    "scipy",
+    "atpublic",
+    "matplotlib",
+    "fastdtw",
+    "asn1crypto",
+    "jinja2",
+    "Click",
+    "rainbow @ git+https://github.com/Ledger-Donjon/rainbow@master"
+  ]
+
+[project.urls]
+"Homepage" = "https://https://neuromancer.sk/pyecsca/"
+"Documentation" = "https://https://neuromancer.sk/pyecsca/"
+"Bug Tracker" = "https://github.com/J08nY/pyecsca/issues"
+"Repository" = "https://github.com/J08nY/pyecsca"
+
+[project.scripts]
+builder="pyecsca.codegen.builder:main"
+client="pyecsca.codegen.client:main"
+
+[project.optional-dependencies]
+"dev" = ["mypy", "flake8"]
+"test" = ["nose2", "parameterized", "green", "coverage"]
+
+[tool.setuptools.packages.find]
+include = ["pyecsca*"]
+namespaces = true
+
+[tool.setuptools_scm]
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
+filterwarnings = [
+    "ignore:Deprecated call to `pkg_resources.declare_namespace"
+]
