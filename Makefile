@@ -1,10 +1,10 @@
 TESTS = test_builder test_client test_render test_impl test_simulator
 
 test:
-	nose2 -s test -A !slow -C -v ${TESTS}
+	pytest -m "not slow" --cov=pyecsca.codegen
 
 test-all:
-	nose2 -s test -C -v ${TESTS}
+	pytest --cov=pyecsca.codegen
 
 typecheck:
 	mypy pyecsca --ignore-missing-imports
