@@ -7,11 +7,11 @@ from os import makedirs
 from typing import Optional, List, Set, Mapping, MutableMapping, Any, Tuple
 
 from jinja2 import Environment, PackageLoader
-from pkg_resources import resource_filename
+from importlib_resources import files, as_file
 from public import public
 from pyecsca.ec.configuration import HashType, RandomMod, Reduction, Multiplication, Squaring
 from pyecsca.ec.coordinates import CoordinateModel
-from pyecsca.ec.formula import (Formula)
+from pyecsca.ec.formula import Formula
 from pyecsca.ec.model import CurveModel
 from pyecsca.ec.mult import (ScalarMultiplier, LTRMultiplier, RTLMultiplier, CoronMultiplier,
                              LadderMultiplier, SimpleLadderMultiplier, DifferentialLadderMultiplier,
@@ -248,7 +248,7 @@ def render(config: DeviceConfiguration) -> Tuple[str, str, str]:
     symlinks = ["asn1", "bn", "hal", "hash",  "prng", "simpleserial", "tommath", "fat.h",
                 "rand.h", "point.h", "curve.h", "mult.h", "formulas.h", "action.h", "Makefile.inc"]
     for sym in symlinks:
-        os.symlink(resource_filename("pyecsca.codegen", sym), path.join(temp, sym))
+        os.symlink(files("pyecsca.codegen").joinpath(sym), path.join(temp, sym))
     gen_dir = path.join(temp, "gen")
     makedirs(gen_dir, exist_ok=True)
 

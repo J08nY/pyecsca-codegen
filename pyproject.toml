@@ -6,7 +6,8 @@
   name = "pyecsca-codegen"
   version = "0.2.0"
   authors = [
-    { name = "Jan Jancar", email = "johny@neuromancer.sk" }
+    { name = "Jan Jancar", email = "johny@neuromancer.sk" },
+    { name = "Andrej Batora"}
   ]
   description = "Python Elliptic Curve cryptography Side Channel Analysis toolkit (codegen package)."
   readme = "README.md"
@@ -35,6 +36,7 @@
     "asn1crypto",
     "jinja2",
     "Click",
+    "importlib-resources",
     "rainbow @ git+https://github.com/Ledger-Donjon/rainbow@master"
   ]
 
