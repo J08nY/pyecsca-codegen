@@ -21,10 +21,9 @@ jobs:
       - uses: actions/cache@v3
         with:
           path: ~/.cache/pip
-          key: pip-${{ runner.os }}-${{ matrix.gmp }}-${{ matrix.python-version }}-${{ hashFiles('setup.py') }}
+          key: pip-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}
           restore-keys: |
-            pip-${{ runner.os }}-${{ matrix.gmp }}-${{ matrix.python-version }}-
-            pip-${{ runner.os }}-${{ matrix.gmp }}-
+            pip-${{ runner.os }}-${{ matrix.python-version }}-
             pip-${{ runner.os }}-
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v3
