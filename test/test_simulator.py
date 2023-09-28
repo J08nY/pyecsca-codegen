@@ -194,7 +194,7 @@ def test_ecdh(mult_name, mult_class, cli_runner, curve32):
 
 
 @pytest.mark.parametrize(
-    "mult_name,mult_class", [("rtl", RTLMultiplier), ("ltr", LTRMultiplier)]
+    "mult_name,mult_class", [("ltr", LTRMultiplier), ("rtl", RTLMultiplier)]
 )
 def test_ecdsa(mult_name, mult_class, cli_runner, curve32):
     data = b"something"
