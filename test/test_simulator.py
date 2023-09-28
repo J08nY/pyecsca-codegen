@@ -194,7 +194,7 @@ def test_ecdh(mult_name, mult_class, cli_runner, curve32):
 
 
 @pytest.mark.parametrize(
-    "mult_name,mult_class", [("ltr", LTRMultiplier), ("rtl", RTLMultiplier)]
+    "mult_name,mult_class", [("rtl", RTLMultiplier), ("ltr", LTRMultiplier)]
 )
 def test_ecdsa(mult_name, mult_class, cli_runner, curve32):
     data = b"something"
@@ -210,6 +210,7 @@ def test_ecdsa(mult_name, mult_class, cli_runner, curve32):
         )
 
         signature_data = target.ecdsa_sign(data)
+        print(signature_data.hex())
         result = SignatureResult.from_DER(bytes(signature_data))
         assert ecdsa.verify_data(result, data)
 
