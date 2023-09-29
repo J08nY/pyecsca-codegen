@@ -10,11 +10,11 @@
 
 void point_ladd(const point_t *one, const point_t *other, const point_t *diff, const curve_t *curve, point_t *out_one, point_t *out_other) {
 	{{ start_action("ladd") }}
-	NOP_128();
+	//NOP_128();
 	// TODO: short-circuits
 	{{ ops.render_initializations(initializations) }}
 	{{ ops.render_ops(operations) }}
 	{{ ops.render_returns(returns) }}
-	NOP_128();
+	//NOP_128();
 	{{ end_action("ladd") }}
 }
