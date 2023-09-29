@@ -291,6 +291,8 @@ class SimulatorTarget(Target):
         command = cmd_ecdsa_sign(data)
         self.__simulate(command, 'cmd_ecdsa_sign')
         signature = self.simulator[self.result[2]:self.result[2] + self.result[1]]
+        print(self.result)
+        print(self.simulator[self.result[2]-30:self.result[2]+self.result[1]+30].hex())
         self.result = []
         return signature
 
