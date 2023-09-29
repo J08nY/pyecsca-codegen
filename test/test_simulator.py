@@ -3,7 +3,7 @@ from os.path import join
 import pytest
 
 from pyecsca.ec.key_agreement import ECDH_SHA1
-from pyecsca.ec.mult import LTRMultiplier, RTLMultiplier
+from pyecsca.ec.mult import LTRMultiplier, RTLMultiplier, CoronMultiplier
 from pyecsca.ec.signature import ECDSA_SHA1, SignatureResult
 
 from pyecsca.codegen.builder import build_impl
@@ -194,7 +194,7 @@ def test_ecdh(mult_name, mult_class, cli_runner, curve32):
 
 
 @pytest.mark.parametrize(
-    "mult_name,mult_class", [("ltr", LTRMultiplier), ("rtl", RTLMultiplier)]
+    "mult_name,mult_class", [("ltr", LTRMultiplier), ("coron", CoronMultiplier), ("rtl", RTLMultiplier)]
 )
 def test_ecdsa(mult_name, mult_class, cli_runner, curve32):
     data = b"something"

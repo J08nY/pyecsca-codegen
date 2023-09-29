@@ -1,7 +1,7 @@
-TESTS = test_builder test_client test_render test_impl test_simulator
+TESTS = test_builder test_client test_commands test_render test_impl test_simulator
 
 test:
-	pytest -m "not slow" --cov=pyecsca.codegen
+	pytest -s -m "not slow" --cov=pyecsca.codegen test/test_simulator
 
 test-all:
 	pytest --cov=pyecsca.codegen
