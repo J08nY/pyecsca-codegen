@@ -8,6 +8,9 @@ from pyecsca.ec.mult import (
     RTLMultiplier,
     CoronMultiplier,
     BinaryNAFMultiplier,
+    WindowNAFMultiplier,
+    AccumulationOrder,
+    ProcessingDirection,
 )
 from pyecsca.ec.signature import ECDSA_SHA1, SignatureResult
 
@@ -34,7 +37,7 @@ def do_basic_test(
     ]
     for additional in other_args:
         with runner.isolated_filesystem() as tmpdir:
-            runner.invoke(
+            res = runner.invoke(
                 build_impl,
                 [
                     "--platform",
@@ -49,6 +52,7 @@ def do_basic_test(
                     ".",
                 ],
             )
+            assert res.exit_code == 0
             target = HostTarget(
                 params.curve.model,
                 params.curve.coordinate_model,
@@ -118,29 +122,38 @@ def test_debug(cli_runner, secp128r1):
     )
 
 
-@pytest.mark.parametrize(
-    "mult_class,mult_name,formulas,mult_kwargs",
-    [
-        (LTRMultiplier, "ltr", ["add-1998-cmo", "dbl-1998-cmo"], {"complete": False}),
-        (LTRMultiplier, "ltr", ["add-1998-cmo", "dbl-1998-cmo"], {"complete": True}),
-        (
-            LTRMultiplier,
-            "ltr",
-            ["add-1998-cmo", "dbl-1998-cmo"],
-            {"complete": False, "always": True},
-        ),
-        (
-            LTRMultiplier,
-            "ltr",
-            ["add-1998-cmo", "dbl-1998-cmo"],
-            {"complete": True, "always": True},
-        ),
-        (RTLMultiplier, "rtl", ["add-1998-cmo", "dbl-1998-cmo"], {"always": False}),
-        (RTLMultiplier, "rtl", ["add-1998-cmo", "dbl-1998-cmo"], {"always": True}),
-        (CoronMultiplier, "coron", ["add-1998-cmo", "dbl-1998-cmo"], {}),
-        (BinaryNAFMultiplier, "bnaf", ["add-1998-cmo", "dbl-1998-cmo", "neg"], {}),
-    ],
-)
+MULTIPLIERS = [
+    (LTRMultiplier, "ltr", ["add-1998-cmo", "dbl-1998-cmo"], {"complete": False}),
+    (LTRMultiplier, "ltr", ["add-1998-cmo", "dbl-1998-cmo"], {"complete": True}),
+    (
+        LTRMultiplier,
+        "ltr",
+        ["add-1998-cmo", "dbl-1998-cmo"],
+        {"complete": False, "always": True},
+    ),
+    (
+        LTRMultiplier,
+        "ltr",
+        ["add-1998-cmo", "dbl-1998-cmo"],
+        {"complete": True, "always": True},
+    ),
+    (
+        LTRMultiplier,
+        "ltr",
+        ["add-1998-cmo", "dbl-1998-cmo"],
+        {"complete": False, "accumulation_order": AccumulationOrder.PeqRP},
+    ),
+    (RTLMultiplier, "rtl", ["add-1998-cmo", "dbl-1998-cmo"], {"always": False}),
+    (RTLMultiplier, "rtl", ["add-1998-cmo", "dbl-1998-cmo"], {"always": True}),
+    (CoronMultiplier, "coron", ["add-1998-cmo", "dbl-1998-cmo"], {}),
+    (BinaryNAFMultiplier, "bnaf", ["add-1998-cmo", "dbl-1998-cmo", "neg"], {"direction": ProcessingDirection.LTR}),
+    (BinaryNAFMultiplier, "bnaf", ["add-1998-cmo", "dbl-1998-cmo", "neg"], {"direction": ProcessingDirection.RTL}),
+    (WindowNAFMultiplier, "wnaf", ["add-1998-cmo", "dbl-1998-cmo", "neg"], {"width": 3}),
+    (WindowNAFMultiplier, "wnaf", ["add-1998-cmo", "dbl-1998-cmo", "neg"], {"width": 3, "precompute_negation": True}),
+]
+
+
+@pytest.mark.parametrize("mult_class,mult_name,formulas,mult_kwargs", MULTIPLIERS)
 def test_keygen(mult_class, mult_name, mult_kwargs, formulas, cli_runner, secp128r1):
     def callback(target, mult, params):
         for _ in range(10):
@@ -161,35 +174,8 @@ def test_keygen(mult_class, mult_name, mult_kwargs, formulas, cli_runner, secp12
         **mult_kwargs,
     )
 
-    # def test_ladder(self):
-    #    runner = CliRunner()
-    #    self.do_keygen_test(runner, self.curve25519, LadderMultiplier, ["ladd-1987-m", "dbl-1987-m"], "ldr")
-    #    # TODO: what about coords where generator is not affine?
 
-
-@pytest.mark.parametrize(
-    "mult_class,mult_name,formulas,mult_kwargs",
-    [
-        (LTRMultiplier, "ltr", ["add-1998-cmo", "dbl-1998-cmo"], {"complete": False}),
-        (LTRMultiplier, "ltr", ["add-1998-cmo", "dbl-1998-cmo"], {"complete": True}),
-        (
-            LTRMultiplier,
-            "ltr",
-            ["add-1998-cmo", "dbl-1998-cmo"],
-            {"complete": False, "always": True},
-        ),
-        (
-            LTRMultiplier,
-            "ltr",
-            ["add-1998-cmo", "dbl-1998-cmo"],
-            {"complete": True, "always": True},
-        ),
-        (RTLMultiplier, "rtl", ["add-1998-cmo", "dbl-1998-cmo"], {"always": False}),
-        (RTLMultiplier, "rtl", ["add-1998-cmo", "dbl-1998-cmo"], {"always": True}),
-        (CoronMultiplier, "coron", ["add-1998-cmo", "dbl-1998-cmo"], {}),
-        (BinaryNAFMultiplier, "bnaf", ["add-1998-cmo", "dbl-1998-cmo", "neg"], {}),
-    ],
-)
+@pytest.mark.parametrize("mult_class,mult_name,formulas,mult_kwargs", MULTIPLIERS)
 def test_scalarmult(
     mult_class, mult_name, mult_kwargs, formulas, cli_runner, secp128r1
 ):
@@ -214,29 +200,7 @@ def test_scalarmult(
     )
 
 
-@pytest.mark.parametrize(
-    "mult_class,mult_name,formulas,mult_kwargs",
-    [
-        (LTRMultiplier, "ltr", ["add-1998-cmo", "dbl-1998-cmo"], {"complete": False}),
-        (LTRMultiplier, "ltr", ["add-1998-cmo", "dbl-1998-cmo"], {"complete": True}),
-        (
-            LTRMultiplier,
-            "ltr",
-            ["add-1998-cmo", "dbl-1998-cmo"],
-            {"complete": False, "always": True},
-        ),
-        (
-            LTRMultiplier,
-            "ltr",
-            ["add-1998-cmo", "dbl-1998-cmo"],
-            {"complete": True, "always": True},
-        ),
-        (RTLMultiplier, "rtl", ["add-1998-cmo", "dbl-1998-cmo"], {"always": False}),
-        (RTLMultiplier, "rtl", ["add-1998-cmo", "dbl-1998-cmo"], {"always": True}),
-        (CoronMultiplier, "coron", ["add-1998-cmo", "dbl-1998-cmo"], {}),
-        (BinaryNAFMultiplier, "bnaf", ["add-1998-cmo", "dbl-1998-cmo", "neg"], {}),
-    ],
-)
+@pytest.mark.parametrize("mult_class,mult_name,formulas,mult_kwargs", MULTIPLIERS)
 def test_ecdh(mult_class, mult_name, mult_kwargs, formulas, cli_runner, secp128r1):
     other_privs = [15, 2355498743, 3253857901321912443757746]
 
@@ -262,29 +226,7 @@ def test_ecdh(mult_class, mult_name, mult_kwargs, formulas, cli_runner, secp128r
     )
 
 
-@pytest.mark.parametrize(
-    "mult_class,mult_name,formulas,mult_kwargs",
-    [
-        (LTRMultiplier, "ltr", ["add-1998-cmo", "dbl-1998-cmo"], {"complete": False}),
-        (LTRMultiplier, "ltr", ["add-1998-cmo", "dbl-1998-cmo"], {"complete": True}),
-        (
-            LTRMultiplier,
-            "ltr",
-            ["add-1998-cmo", "dbl-1998-cmo"],
-            {"complete": False, "always": True},
-        ),
-        (
-            LTRMultiplier,
-            "ltr",
-            ["add-1998-cmo", "dbl-1998-cmo"],
-            {"complete": True, "always": True},
-        ),
-        (RTLMultiplier, "rtl", ["add-1998-cmo", "dbl-1998-cmo"], {"always": False}),
-        (RTLMultiplier, "rtl", ["add-1998-cmo", "dbl-1998-cmo"], {"always": True}),
-        (CoronMultiplier, "coron", ["add-1998-cmo", "dbl-1998-cmo"], {}),
-        (BinaryNAFMultiplier, "bnaf", ["add-1998-cmo", "dbl-1998-cmo", "neg"], {}),
-    ],
-)
+@pytest.mark.parametrize("mult_class,mult_name,formulas,mult_kwargs", MULTIPLIERS)
 def test_ecdsa(mult_class, mult_name, mult_kwargs, formulas, cli_runner, secp128r1):
     data = b"something"
 

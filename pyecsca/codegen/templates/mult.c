@@ -27,6 +27,18 @@
 
 	{% include "mult_bnaf.c" %}
 
+{%- elif isinstance(scalarmult, WindowNAFMultiplier) -%}
+
+    {% include "mult_wnaf.c" %}
+
+{%- elif isinstance(scalarmult, SlidingWindowMultiplier) -%}
+
+    {% include "mult_sliding_w.c" %} {# TODO #}
+
+{%- elif isinstance(scalarmult, FixedWindowLTRMultiplier) -%}
+
+    {% include "mult_fixed_w.c" %} {# TODO #}
+
 {%- endif %}
 
 

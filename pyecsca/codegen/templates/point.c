@@ -137,3 +137,11 @@ void point_from_affine(bn_t *x, bn_t *y, const curve_t *curve, point_t *out) {
 	{%- endfor %}
 	{{ end_action("coord_map") }}
 }
+
+void point_accumulate(const point_t *one, const point_t *other, const curve_t *curve, point_t *out_one) {
+    {% if accumulation_order == "PeqPR" %}
+        point_add(one, other, curve, out_one);
+    {% elif accumulation_order == "PeqRP" %}
+        point_add(other, one, curve, out_one);
+    {% endif %}
+}

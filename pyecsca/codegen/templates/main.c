@@ -562,15 +562,6 @@ static uint8_t cmd_set_trigger(uint8_t *data, uint16_t len) {
 	return 0;
 }
 
-__attribute__((noinline)) void init(void) {
-	// Initalize the platform, UART, triggers.
-	platform_init();
-    init_uart();
-    trigger_setup();
-
-	init_implementation();
-}
-
 __attribute__((noinline)) void init_implementation(void) {
     // Initialize some components that preallocate stuff.
     prng_init();
@@ -581,6 +572,15 @@ __attribute__((noinline)) void init_implementation(void) {
     curve = curve_new();
     pubkey = point_new();
     bn_init(&privkey);
+}
+
+__attribute__((noinline)) void init(void) {
+	// Initalize the platform, UART, triggers.
+	platform_init();
+    init_uart();
+    trigger_setup();
+
+	init_implementation();
 }
 
 __attribute__((noinline)) void deinit(void) {
@@ -616,7 +616,7 @@ int main(void) {
 
     // Execute commands while SimpleSerial is alive.
 	//led_ok(1);
-    while(simpleserial_get());
+    while(simpleserial_get()) {}
     //led_ok(0);
 
 	deinit();

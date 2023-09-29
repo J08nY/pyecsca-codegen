@@ -7,15 +7,27 @@ from os import makedirs
 from typing import Optional, List, Set, Mapping, MutableMapping, Any, Tuple
 
 from jinja2 import Environment, PackageLoader
-from importlib_resources import files, as_file
+from importlib_resources import files
 from public import public
 from pyecsca.ec.configuration import HashType, RandomMod, Reduction, Multiplication, Squaring
 from pyecsca.ec.coordinates import CoordinateModel
 from pyecsca.ec.formula import Formula
 from pyecsca.ec.model import CurveModel
-from pyecsca.ec.mult import (ScalarMultiplier, LTRMultiplier, RTLMultiplier, CoronMultiplier,
-                             LadderMultiplier, SimpleLadderMultiplier, DifferentialLadderMultiplier,
-                             BinaryNAFMultiplier)
+from pyecsca.ec.mult import (
+    ScalarMultiplier,
+    LTRMultiplier,
+    RTLMultiplier,
+    CoronMultiplier,
+    LadderMultiplier,
+    SimpleLadderMultiplier,
+    DifferentialLadderMultiplier,
+    BinaryNAFMultiplier,
+    WindowNAFMultiplier,
+    SlidingWindowMultiplier,
+    FixedWindowLTRMultiplier,
+    AccumulationOrder,
+    ProcessingDirection,
+)
 from pyecsca.ec.op import OpType, CodeOp
 
 from pyecsca.codegen.common import Platform, DeviceConfiguration
@@ -25,6 +37,8 @@ env = Environment(
 )
 
 env.globals["isinstance"] = isinstance
+env.globals["AccumulationOrder"] = AccumulationOrder
+env.globals["ProcessingDirection"] = ProcessingDirection
 
 
 def render_op(op: OpType, result: str, left: str, right: str, mod: str, red: str) -> Optional[str]:
@@ -148,7 +162,7 @@ def transform_ops(ops: List[CodeOp], parameters: List[str], outputs: Set[str],
                 frees=frees, returns=returns)
 
 
-def render_coords_impl(coords: CoordinateModel) -> str:
+def render_coords_impl(coords: CoordinateModel, accumulation_order: Optional[AccumulationOrder]) -> str:
     ops = []
     for s in coords.satisfying:
         try:
@@ -167,8 +181,11 @@ def render_coords_impl(coords: CoordinateModel) -> str:
     frees = namespace["frees"]
     namespace["frees"] = {}
 
+    accumulation_order = getattr(accumulation_order, "name", None)
+
     return env.get_template("point.c").render(variables=coords.variables, **namespace,
-                                              to_affine_rets=returns, to_affine_frees=frees)
+                                              to_affine_rets=returns, to_affine_frees=frees,
+                                              accumulation_order=accumulation_order)
 
 
 def render_formulas_impl(formulas: Set[Formula]) -> str:
@@ -205,7 +222,10 @@ def render_scalarmult_impl(scalarmult: ScalarMultiplier) -> str:
                                              LadderMultiplier=LadderMultiplier,
                                              SimpleLadderMultiplier=SimpleLadderMultiplier,
                                              DifferentialLadderMultiplier=DifferentialLadderMultiplier,
-                                             BinaryNAFMultiplier=BinaryNAFMultiplier)
+                                             BinaryNAFMultiplier=BinaryNAFMultiplier,
+                                             WindowNAFMultiplier=WindowNAFMultiplier,
+                                             SlidingWindowMultiplier=SlidingWindowMultiplier,
+                                             FixedWindowLTRMultiplier=FixedWindowLTRMultiplier)
 
 
 def render_action() -> str:
@@ -257,7 +277,7 @@ def render(config: DeviceConfiguration) -> Tuple[str, str, str]:
     save_render(temp, "main.c",
                 render_main(config.model, config.coords, config.keygen, config.ecdh, config.ecdsa))
     save_render(gen_dir, "defs.h", render_defs(config.model, config.coords))
-    save_render(gen_dir, "point.c", render_coords_impl(config.coords))
+    save_render(gen_dir, "point.c", render_coords_impl(config.coords, getattr(config.scalarmult, "accumulation_order", None)))
     save_render(gen_dir, "formulas.c", render_formulas_impl(config.formulas))
     for formula in config.formulas:
         save_render(gen_dir, f"formula_{formula.shortname}.c",
