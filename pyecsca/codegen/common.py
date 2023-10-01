@@ -7,9 +7,17 @@ from pyecsca.ec.configuration import EnumDefine, Configuration
 from pyecsca.ec.coordinates import CoordinateModel
 from pyecsca.ec.model import (CurveModel, ShortWeierstrassModel, MontgomeryModel, EdwardsModel,
                               TwistedEdwardsModel)
-from pyecsca.ec.mult import (LTRMultiplier, RTLMultiplier, CoronMultiplier,
-                             LadderMultiplier, SimpleLadderMultiplier, DifferentialLadderMultiplier,
-                             WindowNAFMultiplier, BinaryNAFMultiplier)
+from pyecsca.ec.mult import (
+    LTRMultiplier,
+    RTLMultiplier,
+    CoronMultiplier,
+    LadderMultiplier,
+    SimpleLadderMultiplier,
+    DifferentialLadderMultiplier,
+    WindowNAFMultiplier,
+    BinaryNAFMultiplier,
+    SlidingWindowMultiplier,
+)
 
 
 @public
@@ -65,6 +73,10 @@ MULTIPLIERS = [
     {
         "name": ("wnaf", "WindowNAFMultiplier"),
         "class": WindowNAFMultiplier
+    },
+    {
+        "name": ("sliding", "SlidingWindowMultiplier"),
+        "class": SlidingWindowMultiplier
     }
 ]
 

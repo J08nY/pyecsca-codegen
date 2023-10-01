@@ -543,7 +543,6 @@ wsliding_t *bn_wsliding_rtl(const bn_t *bn, int w) {
 		goto exit_mask;
 	}
 
-    int u = 0;
     int i = 0;
 	while (!bn_is_0(&k) && !(bn_get_sign(&k) == BN_NEG)) {
         if (!bn_get_bit(&k, 0)) {

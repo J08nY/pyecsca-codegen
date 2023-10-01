@@ -11,6 +11,7 @@ from pyecsca.ec.mult import (
     CoronMultiplier,
     BinaryNAFMultiplier,
     WindowNAFMultiplier,
+    SlidingWindowMultiplier,
     AccumulationOrder,
     ProcessingDirection,
     ScalarMultiplier,
@@ -128,6 +129,24 @@ def additional(request):
                 {"width": 3, "precompute_negation": True},
             ),
             id="WNAF2",
+        ),
+        pytest.param(
+            (
+                SlidingWindowMultiplier,
+                "sliding",
+                ["add-1998-cmo", "dbl-1998-cmo"],
+                {"width": 3},
+            ),
+            id="SLI1",
+        ),
+        pytest.param(
+            (
+                SlidingWindowMultiplier,
+                "sliding",
+                ["add-1998-cmo", "dbl-1998-cmo"],
+                {"width": 3, "recoding_direction": ProcessingDirection.RTL},
+            ),
+            id="SLI2",
         ),
     ],
 )
