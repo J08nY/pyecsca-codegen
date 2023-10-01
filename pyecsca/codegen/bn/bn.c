@@ -71,6 +71,10 @@ size_t bn_to_bin_size(const bn_t *one) {
 	return mp_ubin_size(one);
 }
 
+unsigned int bn_to_int(const bn_t *one) {
+    return mp_get_mag_ul(one);
+}
+
 bn_err bn_rand_mod_sample(bn_t *out, const bn_t *mod) {
 	int mod_len = bn_bit_length(mod);
 
@@ -448,4 +452,134 @@ exit_full_width:
 
 wnaf_t *bn_bnaf(const bn_t *bn) {
 	return bn_wnaf(bn, 2);
+}
+
+wsliding_t *bn_wsliding_ltr(const bn_t *bn, int w) {
+    if (w > 8 || w < 2) {
+		return NULL;
+	}
+
+	wsliding_t *result = NULL;
+
+    int blen = bn_bit_length(bn);
+    uint8_t arr[blen];
+
+    int b = blen - 1;
+    int u = 0;
+    int c = 0;
+    bn_t mask;
+	if (mp_init(&mask) != BN_OKAY) {
+		goto exit_mask;
+	}
+
+    int i = 0;
+    while (b >= 0) {
+        if (!bn_get_bit(bn, b)) {
+            arr[i++] = 0;  // result.append(0)
+            b--;  // b -= 1
+        } else {
+            u = 0;  // u = 0
+            for (int v = 1; v <= w; v++) {  // for v in range(1, w + 1):
+                if (b + 1 < v) {            // if b + 1 < v:
+                    break;
+                }
+                bn_from_int((1 << v) - 1, &mask);  // mask = ((2**v) - 1) << (b - v + 1)
+                bn_lsh(&mask, b - v + 1, &mask);
+                mp_and(&mask, bn, &mask);  // mask = (i & mask)
+                bn_rsh(&mask, b - v + 1, &mask);  // mask = mask >> (b - v + 1)
+                if (bn_get_bit(&mask, 0)) {  // if c & 1:
+                    u = (int) bn_to_int(&mask);    // u = c
+                }
+            }
+            c = u;
+            while (u) {  // k = u.bit_length()
+                arr[i++] = 0; // result.extend([0] * (k - 1))
+                b--;    // b -= k
+                u >>= 1;
+            }
+            arr[i - 1] = c;  // result.append(u)
+        }
+    }
+    bn_clear(&mask);
+
+    result = malloc(sizeof(wsliding_t));
+    result->w = w;
+    result->length = 0;
+    result->data = NULL;
+    // Strip the repr and return.
+    for (int j = 0; j < i; j++) {
+        if (result->data == NULL) {
+            if (arr[j]) {
+                result->length = i - j;
+                result->data = calloc(result->length, sizeof(uint8_t));
+                result->data[0] = arr[j];
+            }
+        } else {
+            result->data[j - (i - result->length)] = arr[j];
+        }
+    }
+exit_mask:
+    return result;
+}
+
+wsliding_t *bn_wsliding_rtl(const bn_t *bn, int w) {
+	if (w > 8 || w < 2) {
+		return NULL;
+	}
+
+	wsliding_t *result = NULL;
+
+    int blen = bn_bit_length(bn);
+    uint8_t arr[blen];
+
+    bn_t k;
+	if (mp_init(&k) != BN_OKAY) {
+		goto exit_k;
+	}
+	bn_copy(bn, &k);
+
+    bn_t mask;
+	if (mp_init(&mask) != BN_OKAY) {
+		goto exit_mask;
+	}
+
+    int u = 0;
+    int i = 0;
+	while (!bn_is_0(&k) && !(bn_get_sign(&k) == BN_NEG)) {
+        if (!bn_get_bit(&k, 0)) {
+            arr[i++] = 0;
+            bn_rsh(&k, 1, &k);
+        } else {
+            bn_from_int((1 << w) - 1, &mask);  // mask = ((2**w) - 1)
+            mp_and(&mask, &k, &mask);
+            arr[i++] = bn_to_int(&mask);
+            for (int j = 0; j < w - 1; j++) {
+                arr[i++] = 0;
+            }
+            bn_rsh(&k, w, &k);
+        }
+	}
+	bn_clear(&mask);
+
+	result = malloc(sizeof(wsliding_t));
+    result->w = w;
+    result->length = 0;
+    result->data = NULL;
+    // Revert, strip the repr and return.
+    for (int j = i - 1; j >= 0; j--) {
+        if (result->data == NULL) {
+            if (arr[j]) {
+                result->length = j + 1;
+                result->data = calloc(result->length, sizeof(uint8_t));
+                result->data[0] = arr[j];
+            }
+        } else {
+            result->data[result->length - j - 1] = arr[j];
+        }
+    }
+
+exit_mask:
+    bn_clear(&k);
+exit_k:
+	return result;
 }
