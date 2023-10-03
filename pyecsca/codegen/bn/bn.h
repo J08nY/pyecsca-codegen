@@ -64,6 +64,12 @@ typedef struct {
     int w;
 } wsliding_t;
 
+typedef struct {
+    uint8_t *data;
+    size_t length;
+    int m;
+} base_t;
+
 void math_init(void);
 
 bn_err  bn_init(bn_t *bn);
@@ -111,6 +117,7 @@ void   bn_red_clear(red_t *out);
 
 bn_err bn_lsh(const bn_t *one, int amount, bn_t *out);
 bn_err bn_rsh(const bn_t *one, int amount, bn_t *out);
+bn_err bn_and(const bn_t *one, const bn_t *other, bn_t *out);
 
 bool    bn_eq(const bn_t *one, const bn_t *other);
 bool    bn_is_0(const bn_t *one);
@@ -124,5 +131,7 @@ wnaf_t *bn_bnaf(const bn_t *bn);
 
 wsliding_t *bn_wsliding_ltr(const bn_t *bn, int w);
 wsliding_t *bn_wsliding_rtl(const bn_t *bn, int w);
+
+base_t *bn_convert_base(const bn_t *bn, int m);
 
 #endif //BN_H_

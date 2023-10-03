@@ -15,6 +15,7 @@ from pyecsca.ec.mult import (
     AccumulationOrder,
     ProcessingDirection,
     ScalarMultiplier,
+    FixedWindowLTRMultiplier,
 )
 from pyecsca.ec.signature import ECDSA_SHA1, SignatureResult
 
@@ -147,6 +148,24 @@ def additional(request):
                 {"width": 3, "recoding_direction": ProcessingDirection.RTL},
             ),
             id="SLI2",
+        ),
+        pytest.param(
+            (
+                FixedWindowLTRMultiplier,
+                "fixed",
+                ["add-1998-cmo", "dbl-1998-cmo"],
+                {"m": 4},
+            ),
+            id="FIX1",
+        ),
+        pytest.param(
+            (
+                FixedWindowLTRMultiplier,
+                "fixed",
+                ["add-1998-cmo", "dbl-1998-cmo"],
+                {"m": 5},
+            ),
+            id="FIX2",
         ),
     ],
 )

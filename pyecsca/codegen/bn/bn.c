@@ -53,7 +53,7 @@ bn_err bn_from_int(unsigned int value, bn_t *out) {
 	} else {
 		mp_set_u32(out, value);
 	}
-	return MP_OKAY;
+	return BN_OKAY;
 }
 
 bn_err bn_to_binpad(const bn_t *one, uint8_t *data, size_t size) {
@@ -350,6 +350,10 @@ bn_err bn_rsh(const bn_t *one, int amount, bn_t *out) {
 	return mp_div_2d(one, amount, out, NULL);
 }
 
+bn_err bn_and(const bn_t *one, const bn_t *other, bn_t *out) {
+    return mp_and(one, other, out);
+}
+
 bool bn_eq(const bn_t *one, const bn_t *other) {
 	return mp_cmp_mag(one, other) == MP_EQ;
 }
@@ -485,7 +489,7 @@ wsliding_t *bn_wsliding_ltr(const bn_t *bn, int w) {
                 }
                 bn_from_int((1 << v) - 1, &mask);  // mask = ((2**v) - 1) << (b - v + 1)
                 bn_lsh(&mask, b - v + 1, &mask);
-                mp_and(&mask, bn, &mask);  // mask = (i & mask)
+                bn_and(&mask, bn, &mask);  // mask = (i & mask)
                 bn_rsh(&mask, b - v + 1, &mask);  // mask = mask >> (b - v + 1)
                 if (bn_get_bit(&mask, 0)) {  // if c & 1:
                     u = (int) bn_to_int(&mask);    // u = c
@@ -550,7 +554,7 @@ wsliding_t *bn_wsliding_rtl(const bn_t *bn, int w) {
             bn_rsh(&k, 1, &k);
         } else {
             bn_from_int((1 << w) - 1, &mask);  // mask = ((2**w) - 1)
-            mp_and(&mask, &k, &mask);
+            bn_and(&mask, &k, &mask);
             arr[i++] = bn_to_int(&mask);
             for (int j = 0; j < w - 1; j++) {
                 arr[i++] = 0;
@@ -581,4 +585,40 @@ exit_mask:
     bn_clear(&k);
 exit_k:
 	return result;
+}
+
+base_t *bn_convert_base(const bn_t *bn, int m) {
+    base_t *result = NULL;
+
+    bn_t k;
+	if (mp_init(&k) != BN_OKAY) {
+		goto exit_k;
+	}
+	bn_copy(bn, &k);
+
+    int len = 0;
+    if (mp_log_n(&k, m, &len) != BN_OKAY) {
+        goto exit_len;
+    }
+
+    result = malloc(sizeof(base_t));
+    result->length = len + 1;
+    result->data = calloc(result->length, sizeof(uint8_t));
+    result->m = m;
+
+    int i = 0;
+    mp_digit val = 0;
+    while (!bn_is_0(&k) && !(bn_get_sign(&k) == BN_NEG)) {
+        if (mp_div_d(&k, m, &k, &val) != BN_OKAY) {
+            free(result->data);
+            free(result);
+            goto exit_len;
+        }
+        result->data[i++] = (uint8_t) val;
+    }
+
+exit_len:
+    bn_clear(&k);
+exit_k:
+    return result;
 }

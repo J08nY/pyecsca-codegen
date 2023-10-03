@@ -17,6 +17,7 @@ from pyecsca.ec.mult import (
     WindowNAFMultiplier,
     BinaryNAFMultiplier,
     SlidingWindowMultiplier,
+    FixedWindowLTRMultiplier,
 )
 
 
@@ -77,6 +78,10 @@ MULTIPLIERS = [
     {
         "name": ("sliding", "SlidingWindowMultiplier"),
         "class": SlidingWindowMultiplier
+    },
+    {
+        "name": ("fixed", "FixedWindowLTRMultiplier"),
+        "class": FixedWindowLTRMultiplier
     }
 ]
 

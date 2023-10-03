@@ -37,6 +37,7 @@ env = Environment(
 )
 
 env.globals["isinstance"] = isinstance
+env.globals["bin"] = bin
 env.globals["AccumulationOrder"] = AccumulationOrder
 env.globals["ProcessingDirection"] = ProcessingDirection
 
@@ -180,8 +181,6 @@ def render_coords_impl(coords: CoordinateModel, accumulation_order: Optional[Acc
     namespace["returns"] = {}
     frees = namespace["frees"]
     namespace["frees"] = {}
-
-    accumulation_order = getattr(accumulation_order, "name", None)
 
     return env.get_template("point.c").render(variables=coords.variables, **namespace,
                                               to_affine_rets=returns, to_affine_frees=frees,
