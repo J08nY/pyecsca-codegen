@@ -45,17 +45,6 @@ jobs:
       - name: Install pyecsca-codegen
         run: |
           pip install -e ".[test, dev]"
-      - name: Build test config
-        run: |
-          builder build --platform HOST --red BARRETT --no-remove -v shortw projective add-1998-cmo dbl-1998-cmo "sliding(width=3,recoding_direction=ProcessingDirection.RTL)" .
-      - name: Upload bad impl
-        uses: actions/upload-artifact@v3
-        with:
-          name: bad-impl
-          path: pyecsca-codegen-HOST.elf
-      - name: Run bad impl
-        run: |
-          echo -e "c7010fffffffdffffffffffffffffffffffff6e10fffffffe0000000075a30d1b9038a1156801016110fffffffdfffffffffffffffffffffffc6210e87579c11079f43dd824993c2cee5ed3e7247810161ff7528b899b2d0c28607ca52c5b867910cf5ac8395bafeb13c02da292dded7a83e9036e0101\ng\nx\n" | valgrind --track-origins=yes --leak-check=full ./pyecsca-codegen-HOST.elf
       - name: Test
         run: |
           make test
