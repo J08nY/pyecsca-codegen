@@ -3,12 +3,12 @@ name: Test
 on: [push, pull_request]
 
 env:
-  LLVM_CONFIG: /usr/bin/llvm-config-10
-  OTHER_PACKAGES: swig gcc-10 libpcsclite-dev llvm-10 libllvm10 llvm-10-dev gcc-arm-none-eabi binutils-arm-none-eabi libnewlib-arm-none-eabi libnewlib-nano-arm-none-eabi
+  LLVM_CONFIG: /usr/bin/llvm-config-14
+  OTHER_PACKAGES: swig libpcsclite-dev llvm-14 libllvm14 llvm-14-dev gcc gcc-arm-none-eabi binutils-arm-none-eabi libnewlib-arm-none-eabi libnewlib-nano-arm-none-eabi
 
 jobs:
   test:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         python-version: ["3.8", "3.9", "3.10"]
@@ -33,7 +33,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y $OTHER_PACKAGES
-          sudo update-alternatives --set gcc /usr/bin/gcc-10
       - name: Build libtommath
         run: |
           cd ext && make host stm32f3 && cd ..
