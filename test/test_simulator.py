@@ -58,7 +58,7 @@ def do_basic_test(
                 ".",
             ],
         )
-        target = SimulatorTarget(params.curve.model, params.curve.coordinate_model, trace_config=TraceConfig(register=HammingWeight()))
+        target = SimulatorTarget(params.curve.model, params.curve.coordinate_model)
         target.connect(binary=join(tmpdir, "pyecsca-codegen-CW308_STM32F3.elf"))
         target.set_params(params)
         formula_instances = [
@@ -131,7 +131,6 @@ def test_debug(cli_runner, curve32):
 def test_keygen(mult_name, mult_class, cli_runner, curve32):
     def callback(target, mult, params):
         priv, pub = target.generate()
-        print(len(target.trace))
         assert params.curve.is_on_curve(pub)
         expected = mult.multiply(priv).to_affine()
         assert pub == expected
