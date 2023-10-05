@@ -20,15 +20,15 @@ static void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, poin
 	{% elif scalarmult.recoding_direction == ProcessingDirection.RTL %}
 	    wsliding_t *ws = bn_wsliding_rtl(scalar, {{ scalarmult.width }});
 	{% endif %}
-	printf("ws %p\n", ws);
-	printf("len = %li\n", ws->length);
+	//printf("ws %p\n", ws);
+	//printf("len = %li\n", ws->length);
 
 	for (long i = 0; i < ws->length; i++) {
 		point_dbl(q, curve, q);
 		uint8_t val = ws->data[i];
-		printf("i = %li, val = %i\n", i, val);
+		//printf("i = %li, val = %i\n", i, val);
 		if (val) {
-		    printf("adding %i\n", (val - 1) / 2);
+		    //printf("adding %i\n", (val - 1) / 2);
 			point_accumulate(q, points[(val - 1) / 2], curve, q);
         }
 	}
