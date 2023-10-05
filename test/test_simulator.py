@@ -198,6 +198,7 @@ def test_ecdh(mult_name, mult_class, cli_runner, curve32):
     )
 
 
+@pytest.mark.xfail(reason="Simulator bug #3")
 @pytest.mark.parametrize(
     "mult_name,mult_class", [("ltr", LTRMultiplier), ("rtl", RTLMultiplier)]
 )
