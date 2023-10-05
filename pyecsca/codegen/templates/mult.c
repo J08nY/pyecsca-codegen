@@ -33,11 +33,11 @@
 
 {%- elif isinstance(scalarmult, SlidingWindowMultiplier) -%}
 
-    {% include "mult_sliding_w.c" %} {# TODO #}
+    {% include "mult_sliding_w.c" %}
 
 {%- elif isinstance(scalarmult, FixedWindowLTRMultiplier) -%}
 
-    {% include "mult_fixed_w.c" %} {# TODO #}
+    {% include "mult_fixed_w.c" %}
 
 {%- endif %}
 

@@ -32,13 +32,14 @@ static void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, poin
 			point_accumulate(q, points[(val - 1) / 2], curve, q);
         }
 	}
-	free(ws->data);
-	free(ws);
 
     {%- if "scl" in scalarmult.formulas %}
     	point_scl(q, curve, q);
     {%- endif %}
     point_set(q, out);
+
+    free(ws->data);
+	free(ws);
     for (long i = 0; i < {{ 2 ** (scalarmult.width - 1) }}; i++) {
         point_free(points[i]);
     }
