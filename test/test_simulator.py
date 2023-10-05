@@ -5,6 +5,7 @@ import pytest
 from pyecsca.ec.key_agreement import ECDH_SHA1
 from pyecsca.ec.mult import LTRMultiplier, RTLMultiplier
 from pyecsca.ec.signature import ECDSA_SHA1, SignatureResult
+from rainbow import TraceConfig, HammingWeight
 
 from pyecsca.codegen.builder import build_impl
 from pyecsca.codegen.client import SimulatorTarget
@@ -46,6 +47,10 @@ def do_basic_test(
                 "STM32F3",
                 "--ecdsa" if ecdsa else "--no-ecdsa",
                 "--ecdh" if ecdh else "--no-ecdh",
+                "--red",
+                "MONTGOMERY",
+                "-D",
+                "BN_NON_CONST",
                 params.curve.model.shortname,
                 params.curve.coordinate_model.name,
                 *formulas,
@@ -53,7 +58,7 @@ def do_basic_test(
                 ".",
             ],
         )
-        target = SimulatorTarget(params.curve.model, params.curve.coordinate_model)
+        target = SimulatorTarget(params.curve.model, params.curve.coordinate_model, trace_config=TraceConfig(register=HammingWeight()))
         target.connect(binary=join(tmpdir, "pyecsca-codegen-CW308_STM32F3.elf"))
         target.set_params(params)
         formula_instances = [
@@ -126,6 +131,7 @@ def test_debug(cli_runner, curve32):
 def test_keygen(mult_name, mult_class, cli_runner, curve32):
     def callback(target, mult, params):
         priv, pub = target.generate()
+        print(len(target.trace))
         assert params.curve.is_on_curve(pub)
         expected = mult.multiply(priv).to_affine()
         assert pub == expected
