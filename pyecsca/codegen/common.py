@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Type, Optional
+from typing import Type, Optional, MutableMapping, Any
 
 import click
 from public import public
@@ -37,9 +37,15 @@ class DeviceConfiguration(Configuration):
     """A device configuration that includes the platform and choices
     specific to the pyecsca-codegened implementations."""
     platform: Platform
+    """The platform to build for."""
     keygen: bool
+    """Whether the key-generation command is present."""
     ecdh: bool
+    """Whether the ECDH command is present."""
     ecdsa: bool
+    """Whether the ECDSA command is present."""
+    defines: Optional[MutableMapping[str, Any]] = None
+    """Optional defines passed to the compilation."""
 
 
 MULTIPLIERS = [

@@ -4,7 +4,7 @@ import shutil
 import subprocess
 from copy import copy
 from os import path
-from typing import List, Optional, Tuple, Type, MutableMapping
+from typing import List, Optional, Tuple, Type, MutableMapping, Any
 
 import click
 from public import public
@@ -77,6 +77,20 @@ def get_multiplier(ctx: click.Context, param, value: Optional[str]) -> Optional[
     return mult
 
 
+def get_define(ctx: click.Context, param, values: Optional[List[str]]) -> Optional[MutableMapping[str, Any]]:
+    if values is None:
+        return None
+    res = {}
+    for val in values:
+        try:
+            k, v = val.split("=")
+        except:
+            k = val
+            v = 1
+        res[k] = v
+    return res
+
+
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option()
 @public
@@ -122,6 +136,8 @@ def main():
               show_default=True)
 @click.option("--ecdsa/--no-ecdsa", help="Whether to enable ECDSA.", is_flag=True, default=True,
               show_default=True)
+@click.option("-D", "--define", help="Set a custom C define.", multiple=True,
+              type=str, callback=get_define)
 @click.option("--strip", help="Whether to strip the binary or not.", is_flag=True)
 @click.option("--remove/--no-remove", help="Whether to remove the dir.", is_flag=True, default=True,
               show_default=True)
@@ -138,7 +154,7 @@ def main():
 @click.argument("outdir")
 @click.pass_context
 @public
-def build_impl(ctx, platform, hash, rand, mul, sqr, red, inv, keygen, ecdh, ecdsa, strip, remove,
+def build_impl(ctx, platform, hash, rand, mul, sqr, red, inv, keygen, ecdh, ecdsa, define, strip, remove,
                verbose, model, coords, formulas, scalarmult, outdir):
     """This command builds an ECC implementation.
 
@@ -156,7 +172,7 @@ def build_impl(ctx, platform, hash, rand, mul, sqr, red, inv, keygen, ecdh, ecds
 
     click.echo("[ ] Rendering...")
     config = DeviceConfiguration(model, coords, formulas, scalarmult, hash, rand, mul, sqr, red,
-                                 inv, platform, keygen, ecdh, ecdsa)
+                                 inv, platform, keygen, ecdh, ecdsa, define)
     dir, elf_file, hex_file = render(config)
     click.echo("[*] Rendered.")
 

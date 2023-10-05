@@ -244,10 +244,10 @@ def render_main(model: CurveModel, coords: CoordinateModel, keygen: bool, ecdh: 
 
 
 def render_makefile(platform: Platform, hash_type: HashType, mod_rand: RandomMod,
-                    reduction: Reduction, mul: Multiplication, sqr: Squaring) -> str:
+                    reduction: Reduction, mul: Multiplication, sqr: Squaring, defines: Optional[MutableMapping[str, Any]]) -> str:
     return env.get_template("Makefile").render(platform=str(platform), hash_type=str(hash_type),
                                                mod_rand=str(mod_rand), reduction=str(reduction),
-                                               mul=str(mul), sqr=str(sqr))
+                                               mul=str(mul), sqr=str(sqr), defines=defines)
 
 
 def save_render(dir: str, fname: str, rendered: str):
@@ -272,7 +272,7 @@ def render(config: DeviceConfiguration) -> Tuple[str, str, str]:
     makedirs(gen_dir, exist_ok=True)
 
     save_render(temp, "Makefile",
-                render_makefile(config.platform, config.hash_type, config.mod_rand, config.red, config.mult, config.sqr))
+                render_makefile(config.platform, config.hash_type, config.mod_rand, config.red, config.mult, config.sqr, config.defines))
     save_render(temp, "main.c",
                 render_main(config.model, config.coords, config.keygen, config.ecdh, config.ecdsa))
     save_render(gen_dir, "defs.h", render_defs(config.model, config.coords))
