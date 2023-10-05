@@ -540,8 +540,8 @@ wsliding_t *bn_wsliding_rtl(const bn_t *bn, int w) {
 	wsliding_t *result = NULL;
 
     int blen = bn_bit_length(bn);
-    uint8_t arr[blen + 1];
-    memset(arr, 0, (blen + 1) * sizeof(uint8_t));
+    uint8_t arr[blen + 2];
+    memset(arr, 0, (blen + 2) * sizeof(uint8_t));
 
     bn_t k;
 	if (mp_init(&k) != BN_OKAY) {
