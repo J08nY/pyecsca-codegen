@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 env:
   LLVM_CONFIG: /usr/bin/llvm-config-10
-  OTHER_PACKAGES: swig gcc libpcsclite-dev llvm-10 libllvm10 llvm-10-dev gcc-arm-none-eabi binutils-arm-none-eabi libnewlib-arm-none-eabi libnewlib-nano-arm-none-eabi
+  OTHER_PACKAGES: swig gcc-10 libpcsclite-dev llvm-10 libllvm10 llvm-10-dev gcc-arm-none-eabi binutils-arm-none-eabi libnewlib-arm-none-eabi libnewlib-nano-arm-none-eabi
 
 jobs:
   test:
@@ -33,6 +33,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y $OTHER_PACKAGES
+          sudo update-alternatives --set gcc /usr/bin/gcc-10
       - name: Build libtommath
         run: |
           cd ext && make host stm32f3 && cd ..
