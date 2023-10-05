@@ -166,7 +166,11 @@ bn_err bn_mod(const bn_t *one, const bn_t *mod, bn_t *out) {
 
 bn_err bn_red_init(red_t *out) {
 	#if REDUCTION == RED_MONTGOMERY
-		return bn_init(&out->montgomery_renorm);
+	    bn_err err;
+	    if ((err = bn_init(&out->montgomery_renorm)) != BN_OKAY) {
+	        return err;
+	    }
+	    return bn_init(&out->montgomery_renorm_sqr);
 	#elif REDUCTION == RED_BARRETT
 		return bn_init(&out->barrett);
 	#endif
@@ -337,6 +341,7 @@ bn_err bn_red_reduce(const bn_t *mod, const red_t *red, bn_t *what) {
 void bn_red_clear(red_t *out) {
 	#if REDUCTION == RED_MONTGOMERY
 		bn_clear(&out->montgomery_renorm);
+		bn_clear(&out->montgomery_renorm_sqr);
 	#elif REDUCTION == RED_BARRETT
 		bn_clear(&out->barrett);
 	#endif
