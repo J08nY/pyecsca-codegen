@@ -187,6 +187,9 @@ def target(request, additional, secp128r1) -> ImplTarget:
                 f"{mult_name}({','.join(f'{key}={value}' for key, value in mult_kwargs.items())})",
                 ".",
             ],
+            env={
+                "CFLAGS": "-fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all"
+            }
         )
         assert res.exit_code == 0
         target = HostTarget(
