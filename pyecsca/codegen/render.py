@@ -25,8 +25,11 @@ from pyecsca.ec.mult import (
     WindowNAFMultiplier,
     SlidingWindowMultiplier,
     FixedWindowLTRMultiplier,
+    FullPrecompMultiplier,
+    BGMWMultiplier,
+    CombMultiplier,
     AccumulationOrder,
-    ProcessingDirection,
+    ProcessingDirection
 )
 from pyecsca.ec.op import OpType, CodeOp
 
@@ -224,7 +227,10 @@ def render_scalarmult_impl(scalarmult: ScalarMultiplier) -> str:
                                              BinaryNAFMultiplier=BinaryNAFMultiplier,
                                              WindowNAFMultiplier=WindowNAFMultiplier,
                                              SlidingWindowMultiplier=SlidingWindowMultiplier,
-                                             FixedWindowLTRMultiplier=FixedWindowLTRMultiplier)
+                                             FixedWindowLTRMultiplier=FixedWindowLTRMultiplier,
+                                             FullPrecompMultiplier=FullPrecompMultiplier,
+                                             BGMWMultiplier=BGMWMultiplier,
+                                             CombMultiplier=CombMultiplier)
 
 
 def render_action() -> str:

@@ -18,6 +18,9 @@ from pyecsca.ec.mult import (
     BinaryNAFMultiplier,
     SlidingWindowMultiplier,
     FixedWindowLTRMultiplier,
+    FullPrecompMultiplier,
+    BGMWMultiplier,
+    CombMultiplier,
 )
 
 
@@ -49,46 +52,19 @@ class DeviceConfiguration(Configuration):
 
 
 MULTIPLIERS = [
-    {
-        "name": ("ltr", "LTRMultiplier"),
-        "class": LTRMultiplier
-    },
-    {
-        "name": ("rtl", "RTLMultiplier"),
-        "class": RTLMultiplier
-    },
-    {
-        "name": ("coron", "CoronMultiplier"),
-        "class": CoronMultiplier
-    },
-    {
-        "name": ("ldr", "LadderMultiplier"),
-        "class": LadderMultiplier
-    },
-    {
-        "name": ("simple-ldr", "SimpleLadderMultiplier"),
-        "class": SimpleLadderMultiplier
-    },
-    {
-        "name": ("diff-ldr", "DifferentialLadderMultiplier"),
-        "class": DifferentialLadderMultiplier
-    },
-    {
-        "name": ("naf", "bnaf", "BinaryNAFMultiplier"),
-        "class": BinaryNAFMultiplier
-    },
-    {
-        "name": ("wnaf", "WindowNAFMultiplier"),
-        "class": WindowNAFMultiplier
-    },
-    {
-        "name": ("sliding", "SlidingWindowMultiplier"),
-        "class": SlidingWindowMultiplier
-    },
-    {
-        "name": ("fixed", "FixedWindowLTRMultiplier"),
-        "class": FixedWindowLTRMultiplier
-    }
+    {"name": ("ltr", "LTRMultiplier"), "class": LTRMultiplier},
+    {"name": ("rtl", "RTLMultiplier"), "class": RTLMultiplier},
+    {"name": ("coron", "CoronMultiplier"), "class": CoronMultiplier},
+    {"name": ("ldr", "LadderMultiplier"), "class": LadderMultiplier},
+    {"name": ("simple-ldr", "SimpleLadderMultiplier"), "class": SimpleLadderMultiplier},
+    {"name": ("diff-ldr", "DifferentialLadderMultiplier"), "class": DifferentialLadderMultiplier},
+    {"name": ("naf", "bnaf", "BinaryNAFMultiplier"), "class": BinaryNAFMultiplier},
+    {"name": ("wnaf", "WindowNAFMultiplier"), "class": WindowNAFMultiplier},
+    {"name": ("sliding", "SlidingWindowMultiplier"), "class": SlidingWindowMultiplier},
+    {"name": ("fixed", "FixedWindowLTRMultiplier"), "class": FixedWindowLTRMultiplier},
+    {"name": ("precomp", "FullPrecompMultiplier"), "class": FullPrecompMultiplier},
+    {"name": ("bgmw", "BGMWMultiplier"), "class": BGMWMultiplier},
+    {"name": ("comb", "CombMultiplier"), "class": CombMultiplier},
 ]
 
 

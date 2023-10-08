@@ -16,6 +16,9 @@ from pyecsca.ec.mult import (
     ProcessingDirection,
     ScalarMultiplier,
     FixedWindowLTRMultiplier,
+    FullPrecompMultiplier,
+    BGMWMultiplier,
+    CombMultiplier,
 )
 from pyecsca.ec.signature import ECDSA_SHA1, SignatureResult
 
@@ -167,6 +170,60 @@ def additional(request):
             ),
             id="FIX2",
         ),
+        pytest.param(
+            (
+                FullPrecompMultiplier,
+                "precomp",
+                ["add-1998-cmo", "dbl-1998-cmo"],
+                {"direction": ProcessingDirection.LTR},
+            ),
+            id="PRE1",
+        ),
+        pytest.param(
+            (
+                FullPrecompMultiplier,
+                "precomp",
+                ["add-1998-cmo", "dbl-1998-cmo"],
+                {"direction": ProcessingDirection.RTL},
+            ),
+            id="PRE2",
+        ),
+        pytest.param(
+            (
+                    BGMWMultiplier,
+                    "bgmw",
+                    ["add-1998-cmo", "dbl-1998-cmo"],
+                    {"width": 3, "direction": ProcessingDirection.LTR},
+            ),
+            id="BGMW1",
+        ),
+        pytest.param(
+            (
+                    BGMWMultiplier,
+                    "bgmw",
+                    ["add-1998-cmo", "dbl-1998-cmo"],
+                    {"width": 5, "direction": ProcessingDirection.RTL},
+            ),
+            id="BGMW2",
+        ),
+        pytest.param(
+            (
+                    CombMultiplier,
+                    "comb",
+                    ["add-1998-cmo", "dbl-1998-cmo"],
+                    {"width": 3},
+            ),
+            id="Comb1",
+        ),
+        pytest.param(
+            (
+                    CombMultiplier,
+                    "comb",
+                    ["add-1998-cmo", "dbl-1998-cmo"],
+                    {"width": 5},
+            ),
+            id="Comb2",
+        ),
     ],
 )
 def target(request, additional, secp128r1) -> ImplTarget:
@@ -189,7 +246,7 @@ def target(request, additional, secp128r1) -> ImplTarget:
             ],
             env={
                 "CFLAGS": "-fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all"
-            }
+            },
         )
         assert res.exit_code == 0
         target = HostTarget(

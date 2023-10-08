@@ -594,8 +594,8 @@ exit_k:
 	return result;
 }
 
-base_t *bn_convert_base(const bn_t *bn, int m) {
-    base_t *result = NULL;
+small_base_t *bn_convert_base_small(const bn_t *bn, int m) {
+    small_base_t *result = NULL;
 
     bn_t k;
 	if (mp_init(&k) != BN_OKAY) {
@@ -608,9 +608,9 @@ base_t *bn_convert_base(const bn_t *bn, int m) {
         goto exit_len;
     }
 
-    result = malloc(sizeof(base_t));
+    result = malloc(sizeof(small_base_t));
     result->length = len + 1;
-    result->data = calloc(result->length, sizeof(uint8_t));
+    result->data = calloc(result->length, sizeof(int));
     result->m = m;
 
     int i = 0;
@@ -621,7 +621,45 @@ base_t *bn_convert_base(const bn_t *bn, int m) {
             free(result);
             goto exit_len;
         }
-        result->data[i++] = (uint8_t) val;
+        result->data[i++] = val;
+    }
+
+exit_len:
+    bn_clear(&k);
+exit_k:
+    return result;
+}
+
+large_base_t *bn_convert_base_large(const bn_t *bn, const bn_t *m) {
+    large_base_t *result = NULL;
+
+    bn_t k;
+	if (mp_init(&k) != BN_OKAY) {
+		goto exit_k;
+	}
+	bn_copy(bn, &k);
+
+    int len = 0;
+    if (mp_log(&k, m, &len) != BN_OKAY) {
+        goto exit_len;
+    }
+
+    result = malloc(sizeof(large_base_t));
+    result->length = len + 1;
+    result->data = calloc(result->length, sizeof(bn_t));
+    bn_init(&result->m);
+    bn_copy(m, &result->m);
+
+    int i = 0;
+    while (!bn_is_0(&k) && !(bn_get_sign(&k) == BN_NEG)) {
+        bn_init(&result->data[i]);
+        if (mp_div(&k, m, &k, &result->data[i]) != BN_OKAY) {
+            free(result->data);
+            bn_clear(&result->m);
+            free(result);
+            goto exit_len;
+        }
+        i++;
     }
 
 exit_len:

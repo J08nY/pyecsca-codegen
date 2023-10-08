@@ -65,10 +65,16 @@ typedef struct {
 } wsliding_t;
 
 typedef struct {
-    uint8_t *data;
+    int *data;
     size_t length;
     int m;
-} base_t;
+} small_base_t;
+
+typedef struct {
+    bn_t *data;
+    size_t length;
+    bn_t m;
+} large_base_t;
 
 void math_init(void);
 
@@ -126,12 +132,14 @@ bn_sign bn_get_sign(const bn_t *one);
 
 int     bn_get_bit(const bn_t *bn, int which);
 int     bn_bit_length(const bn_t *bn);
+
 wnaf_t *bn_wnaf(const bn_t *bn, int w);
 wnaf_t *bn_bnaf(const bn_t *bn);
 
 wsliding_t *bn_wsliding_ltr(const bn_t *bn, int w);
 wsliding_t *bn_wsliding_rtl(const bn_t *bn, int w);
 
-base_t *bn_convert_base(const bn_t *bn, int m);
+small_base_t *bn_convert_base_small(const bn_t *bn, int m);
+large_base_t *bn_convert_base_large(const bn_t *bn, const bn_t *m);
 
 #endif //BN_H_

@@ -59,21 +59,21 @@ int test_wsliding_rtl() {
 }
 
 int test_convert_base() {
-    printf("test_convert-base: ");
+    printf("test_convert_base: ");
     bn_t bn;
     bn_init(&bn);
-    bn_from_int(5, &bn);
-    base_t *bs = bn_convert_base(&bn, 2);
+    bn_from_int(11, &bn);
+    small_base_t *bs = bn_convert_base_small(&bn, 2);
     if (bs == NULL) {
         printf("NULL\n");
         return 1;
     }
-    if (bs->length != 3) {
-        printf("Bad length (%li instead of 3)\n", bs->length);
+    if (bs->length != 4) {
+        printf("Bad length (%li instead of 4)\n", bs->length);
         return 1;
     }
-    uint8_t expected[3] = {1, 0, 1};
-    for (int i = 0; i < 3; i++) {
+    uint8_t expected[4] = {1, 1, 0, 1};
+    for (int i = 0; i < 4; i++) {
         if (bs->data[i] != expected[i]) {
             printf("Bad data (%i insead of %i)\n", bs->data[i], expected[i]);
             return 1;

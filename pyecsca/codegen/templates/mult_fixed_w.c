@@ -35,7 +35,7 @@ static void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, poin
     point_free(current);
     point_free(dbl);
 
-    base_t *bs = bn_convert_base(scalar, {{ scalarmult.m }});
+    small_base_t *bs = bn_convert_base_small(scalar, {{ scalarmult.m }});
 
 	for (long i = bs->length - 1; i >= 0; i--) {
 	    {%- if bin(scalarmult.m).count("1") == 1 %}
@@ -44,7 +44,7 @@ static void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, poin
 	        scalar_mult_by_m_base(q, curve);
 	    {%- endif %}
 
-		uint8_t val = bs->data[i];
+		int val = bs->data[i];
 		if (val) {
 			point_accumulate(q, points[val-1], curve, q);
         }

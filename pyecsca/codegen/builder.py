@@ -177,21 +177,25 @@ def build_impl(ctx, platform, hash, rand, mul, sqr, red, inv, keygen, ecdh, ecds
     click.echo("[*] Rendered.")
 
     click.echo("[ ] Building...")
-    subprocess.run(["make"], cwd=dir, capture_output=not verbose)
-    click.echo("[*] Built.")
-
-    if strip:
-        subprocess.run(["make", "strip"], cwd=dir, capture_output=not verbose)
-    full_elf_path = path.join(dir, elf_file)
-    full_hex_path = path.join(dir, hex_file)
-    shutil.copy(full_elf_path, outdir)
-    shutil.copy(full_hex_path, outdir)
-    click.echo(elf_file)
-    click.echo(hex_file)
-    if remove:
+    result = subprocess.run(["make"], cwd=dir, capture_output=not verbose)
+    if result.returncode != 0:
+        click.echo("[x] Build failed.")
         shutil.rmtree(dir)
     else:
-        click.echo(dir)
+        click.echo("[*] Built.")
+
+        if strip:
+            subprocess.run(["make", "strip"], cwd=dir, capture_output=not verbose)
+        full_elf_path = path.join(dir, elf_file)
+        full_hex_path = path.join(dir, hex_file)
+        shutil.copy(full_elf_path, outdir)
+        shutil.copy(full_hex_path, outdir)
+        click.echo(elf_file)
+        click.echo(hex_file)
+        if remove:
+            shutil.rmtree(dir)
+        else:
+            click.echo(dir)
 
 
 @main.command("list")
