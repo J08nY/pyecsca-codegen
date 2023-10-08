@@ -58,6 +58,24 @@ typedef struct {
 	int w;
 } wnaf_t;
 
+typedef struct {
+    uint8_t *data;
+    size_t length;
+    int w;
+} wsliding_t;
+
+typedef struct {
+    int *data;
+    size_t length;
+    int m;
+} small_base_t;
+
+typedef struct {
+    bn_t *data;
+    size_t length;
+    bn_t m;
+} large_base_t;
+
 void math_init(void);
 
 bn_err  bn_init(bn_t *bn);
@@ -73,6 +91,7 @@ bn_err bn_from_int(unsigned int value, bn_t *out);
 bn_err bn_to_binpad(const bn_t *one, uint8_t *data, size_t size);
 bn_err bn_to_bin(const bn_t *one, uint8_t *data);
 size_t bn_to_bin_size(const bn_t *one);
+unsigned int bn_to_int(const bn_t *one);
 
 bn_err bn_rand_mod_sample(bn_t *out, const bn_t *mod);
 bn_err bn_rand_mod_reduce(bn_t *out, const bn_t *mod);
@@ -104,6 +123,7 @@ void   bn_red_clear(red_t *out);
 
 bn_err bn_lsh(const bn_t *one, int amount, bn_t *out);
 bn_err bn_rsh(const bn_t *one, int amount, bn_t *out);
+bn_err bn_and(const bn_t *one, const bn_t *other, bn_t *out);
 
 bool    bn_eq(const bn_t *one, const bn_t *other);
 bool    bn_is_0(const bn_t *one);
@@ -112,7 +132,14 @@ bn_sign bn_get_sign(const bn_t *one);
 
 int     bn_get_bit(const bn_t *bn, int which);
 int     bn_bit_length(const bn_t *bn);
+
 wnaf_t *bn_wnaf(const bn_t *bn, int w);
 wnaf_t *bn_bnaf(const bn_t *bn);
+
+wsliding_t *bn_wsliding_ltr(const bn_t *bn, int w);
+wsliding_t *bn_wsliding_rtl(const bn_t *bn, int w);
+
+small_base_t *bn_convert_base_small(const bn_t *bn, int m);
+large_base_t *bn_convert_base_large(const bn_t *bn, const bn_t *m);
 
 #endif //BN_H_

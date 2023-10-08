@@ -5,6 +5,7 @@ import pytest
 from pyecsca.ec.key_agreement import ECDH_SHA1
 from pyecsca.ec.mult import LTRMultiplier, RTLMultiplier
 from pyecsca.ec.signature import ECDSA_SHA1, SignatureResult
+from rainbow import TraceConfig, HammingWeight
 
 from pyecsca.codegen.builder import build_impl
 from pyecsca.codegen.client import SimulatorTarget
@@ -46,6 +47,10 @@ def do_basic_test(
                 "STM32F3",
                 "--ecdsa" if ecdsa else "--no-ecdsa",
                 "--ecdh" if ecdh else "--no-ecdh",
+                "--red",
+                "MONTGOMERY",
+                "-D",
+                "BN_NON_CONST",
                 params.curve.model.shortname,
                 params.curve.coordinate_model.name,
                 *formulas,
@@ -193,6 +198,7 @@ def test_ecdh(mult_name, mult_class, cli_runner, curve32):
     )
 
 
+@pytest.mark.xfail(reason="Simulator bug #3")
 @pytest.mark.parametrize(
     "mult_name,mult_class", [("ltr", LTRMultiplier), ("rtl", RTLMultiplier)]
 )

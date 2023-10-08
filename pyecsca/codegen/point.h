@@ -51,4 +51,6 @@ void point_ladd(const point_t *one, const point_t *other, const point_t *diff, c
 bool point_ladd_init(void);
 void point_ladd_clear(void);
 
+void point_accumulate(const point_t *one, const point_t *other, const curve_t *curve, point_t *out_one);
+
 #endif //POINT_H_

@@ -4,7 +4,7 @@ import shutil
 import subprocess
 from copy import copy
 from os import path
-from typing import List, Optional, Tuple, Type, MutableMapping
+from typing import List, Optional, Tuple, Type, MutableMapping, Any
 
 import click
 from public import public
@@ -13,7 +13,7 @@ from pyecsca.ec.configuration import (Multiplication, Squaring, Reduction, HashT
 from pyecsca.ec.coordinates import CoordinateModel
 from pyecsca.ec.formula import Formula, AdditionFormula
 from pyecsca.ec.model import CurveModel
-from pyecsca.ec.mult import ScalarMultiplier
+from pyecsca.ec.mult import ScalarMultiplier, AccumulationOrder, ProcessingDirection
 
 from .render import render
 from .common import Platform, DeviceConfiguration, MULTIPLIERS, wrap_enum, get_model, get_coords
@@ -40,7 +40,7 @@ def get_multiplier(ctx: click.Context, param, value: Optional[str]) -> Optional[
     if value is None:
         return None
     res = re.match(
-            "(?P<name>[a-zA-Z\-]+)\((?P<args>([a-zA-Z_]+ *= *[a-zA-Z0-9]+, ?)*?([a-zA-Z_]+ *= *[a-zA-Z0-9]+)*)\)",
+            "(?P<name>[a-zA-Z\-]+)\((?P<args>([a-zA-Z_]+ *= *[a-zA-Z0-9.]+, ?)*?([a-zA-Z_]+ *= *[a-zA-Z0-9.]+)*)\)",
             value)
     if not res:
         raise click.BadParameter("Couldn't parse multiplier spec: {}.".format(value))
@@ -61,7 +61,10 @@ def get_multiplier(ctx: click.Context, param, value: Optional[str]) -> Optional[
         raise click.BadParameter(
                 "Multiplier {} requires formulas: {}, got {}.".format(mult_class.__name__,
                                                                       mult_class.requires, classes))
-    kwargs = eval("dict(" + args + ")")
+    globs = dict(globals())
+    globs["AccumulationOrder"] = AccumulationOrder
+    globs["ProcessingDirection"] = ProcessingDirection
+    kwargs = eval("dict(" + args + ")", globs)
     required = set(
             filter(lambda formula: any(isinstance(formula, cls) for cls in mult_class.requires),
                    formulas))
@@ -72,6 +75,20 @@ def get_multiplier(ctx: click.Context, param, value: Optional[str]) -> Optional[
         kwargs[formula.shortname] = formula
     mult = mult_class(**kwargs)
     return mult
+
+
+def get_define(ctx: click.Context, param, values: Optional[List[str]]) -> Optional[MutableMapping[str, Any]]:
+    if values is None:
+        return None
+    res = {}
+    for val in values:
+        try:
+            k, v = val.split("=")
+        except:
+            k = val
+            v = 1
+        res[k] = v
+    return res
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -119,6 +136,8 @@ def main():
               show_default=True)
 @click.option("--ecdsa/--no-ecdsa", help="Whether to enable ECDSA.", is_flag=True, default=True,
               show_default=True)
+@click.option("-D", "--define", help="Set a custom C define.", multiple=True,
+              type=str, callback=get_define)
 @click.option("--strip", help="Whether to strip the binary or not.", is_flag=True)
 @click.option("--remove/--no-remove", help="Whether to remove the dir.", is_flag=True, default=True,
               show_default=True)
@@ -135,7 +154,7 @@ def main():
 @click.argument("outdir")
 @click.pass_context
 @public
-def build_impl(ctx, platform, hash, rand, mul, sqr, red, inv, keygen, ecdh, ecdsa, strip, remove,
+def build_impl(ctx, platform, hash, rand, mul, sqr, red, inv, keygen, ecdh, ecdsa, define, strip, remove,
                verbose, model, coords, formulas, scalarmult, outdir):
     """This command builds an ECC implementation.
 
@@ -153,26 +172,30 @@ def build_impl(ctx, platform, hash, rand, mul, sqr, red, inv, keygen, ecdh, ecds
 
     click.echo("[ ] Rendering...")
     config = DeviceConfiguration(model, coords, formulas, scalarmult, hash, rand, mul, sqr, red,
-                                 inv, platform, keygen, ecdh, ecdsa)
+                                 inv, platform, keygen, ecdh, ecdsa, define)
     dir, elf_file, hex_file = render(config)
     click.echo("[*] Rendered.")
 
     click.echo("[ ] Building...")
-    subprocess.run(["make"], cwd=dir, capture_output=not verbose)
-    click.echo("[*] Built.")
-
-    if strip:
-        subprocess.run(["make", "strip"], cwd=dir, capture_output=not verbose)
-    full_elf_path = path.join(dir, elf_file)
-    full_hex_path = path.join(dir, hex_file)
-    shutil.copy(full_elf_path, outdir)
-    shutil.copy(full_hex_path, outdir)
-    click.echo(elf_file)
-    click.echo(hex_file)
-    if remove:
+    result = subprocess.run(["make"], cwd=dir, capture_output=not verbose)
+    if result.returncode != 0:
+        click.echo("[x] Build failed.")
         shutil.rmtree(dir)
     else:
-        click.echo(dir)
+        click.echo("[*] Built.")
+
+        if strip:
+            subprocess.run(["make", "strip"], cwd=dir, capture_output=not verbose)
+        full_elf_path = path.join(dir, elf_file)
+        full_hex_path = path.join(dir, hex_file)
+        shutil.copy(full_elf_path, outdir)
+        shutil.copy(full_hex_path, outdir)
+        click.echo(elf_file)
+        click.echo(hex_file)
+        if remove:
+            shutil.rmtree(dir)
+        else:
+            click.echo(dir)
 
 
 @main.command("list")

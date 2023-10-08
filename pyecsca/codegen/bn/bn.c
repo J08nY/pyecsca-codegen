@@ -53,7 +53,7 @@ bn_err bn_from_int(unsigned int value, bn_t *out) {
 	} else {
 		mp_set_u32(out, value);
 	}
-	return MP_OKAY;
+	return BN_OKAY;
 }
 
 bn_err bn_to_binpad(const bn_t *one, uint8_t *data, size_t size) {
@@ -69,6 +69,10 @@ bn_err bn_to_bin(const bn_t *one, uint8_t *data) {
 
 size_t bn_to_bin_size(const bn_t *one) {
 	return mp_ubin_size(one);
+}
+
+unsigned int bn_to_int(const bn_t *one) {
+    return mp_get_mag_ul(one);
 }
 
 bn_err bn_rand_mod_sample(bn_t *out, const bn_t *mod) {
@@ -162,7 +166,11 @@ bn_err bn_mod(const bn_t *one, const bn_t *mod, bn_t *out) {
 
 bn_err bn_red_init(red_t *out) {
 	#if REDUCTION == RED_MONTGOMERY
-		return bn_init(&out->montgomery_renorm);
+	    bn_err err;
+	    if ((err = bn_init(&out->montgomery_renorm)) != BN_OKAY) {
+	        return err;
+	    }
+	    return bn_init(&out->montgomery_renorm_sqr);
 	#elif REDUCTION == RED_BARRETT
 		return bn_init(&out->barrett);
 	#endif
@@ -333,6 +341,7 @@ bn_err bn_red_reduce(const bn_t *mod, const red_t *red, bn_t *what) {
 void bn_red_clear(red_t *out) {
 	#if REDUCTION == RED_MONTGOMERY
 		bn_clear(&out->montgomery_renorm);
+		bn_clear(&out->montgomery_renorm_sqr);
 	#elif REDUCTION == RED_BARRETT
 		bn_clear(&out->barrett);
 	#endif
@@ -344,6 +353,10 @@ bn_err bn_lsh(const bn_t *one, int amount, bn_t *out) {
 
 bn_err bn_rsh(const bn_t *one, int amount, bn_t *out) {
 	return mp_div_2d(one, amount, out, NULL);
+}
+
+bn_err bn_and(const bn_t *one, const bn_t *other, bn_t *out) {
+    return mp_and(one, other, out);
 }
 
 bool bn_eq(const bn_t *one, const bn_t *other) {
@@ -448,4 +461,209 @@ exit_full_width:
 
 wnaf_t *bn_bnaf(const bn_t *bn) {
 	return bn_wnaf(bn, 2);
+}
+
+wsliding_t *bn_wsliding_ltr(const bn_t *bn, int w) {
+    if (w > 8 || w < 2) {
+		return NULL;
+	}
+
+	wsliding_t *result = NULL;
+
+    int blen = bn_bit_length(bn);
+    uint8_t arr[blen];
+    memset(arr, 0, blen * sizeof(uint8_t));
+
+    int b = blen - 1;
+    int u = 0;
+    int c = 0;
+    bn_t mask;
+	if (mp_init(&mask) != BN_OKAY) {
+		goto exit_mask;
+	}
+
+    int i = 0;
+    while (b >= 0) {
+        if (!bn_get_bit(bn, b)) {
+            arr[i++] = 0;  // result.append(0)
+            b--;  // b -= 1
+        } else {
+            u = 0;  // u = 0
+            for (int v = 1; v <= w; v++) {  // for v in range(1, w + 1):
+                if (b + 1 < v) {            // if b + 1 < v:
+                    break;
+                }
+                bn_from_int((1 << v) - 1, &mask);  // mask = ((2**v) - 1) << (b - v + 1)
+                bn_lsh(&mask, b - v + 1, &mask);
+                bn_and(&mask, bn, &mask);  // mask = (i & mask)
+                bn_rsh(&mask, b - v + 1, &mask);  // mask = mask >> (b - v + 1)
+                if (bn_get_bit(&mask, 0)) {  // if c & 1:
+                    u = (int) bn_to_int(&mask);    // u = c
+                }
+            }
+            c = u;
+            while (u) {  // k = u.bit_length()
+                arr[i++] = 0; // result.extend([0] * (k - 1))
+                b--;    // b -= k
+                u >>= 1;
+            }
+            arr[i - 1] = c;  // result.append(u)
+        }
+    }
+    bn_clear(&mask);
+
+    result = malloc(sizeof(wsliding_t));
+    result->w = w;
+    result->length = 0;
+    result->data = NULL;
+    // Strip the repr and return.
+    for (int j = 0; j < i; j++) {
+        if (result->data == NULL) {
+            if (arr[j]) {
+                result->length = i - j;
+                result->data = calloc(result->length, sizeof(uint8_t));
+                result->data[0] = arr[j];
+            }
+        } else {
+            result->data[j - (i - result->length)] = arr[j];
+        }
+    }
+exit_mask:
+    return result;
+}
+
+wsliding_t *bn_wsliding_rtl(const bn_t *bn, int w) {
+	if (w > 8 || w < 2) {
+		return NULL;
+	}
+
+	wsliding_t *result = NULL;
+
+    int blen = bn_bit_length(bn);
+    uint8_t arr[blen + 2];
+    memset(arr, 0, (blen + 2) * sizeof(uint8_t));
+
+    bn_t k;
+	if (mp_init(&k) != BN_OKAY) {
+		goto exit_k;
+	}
+	bn_copy(bn, &k);
+
+    bn_t mask;
+	if (mp_init(&mask) != BN_OKAY) {
+		goto exit_mask;
+	}
+
+    int i = 0;
+	while (!bn_is_0(&k) && !(bn_get_sign(&k) == BN_NEG)) {
+        if (!bn_get_bit(&k, 0)) {
+            arr[i++] = 0;
+            bn_rsh(&k, 1, &k);
+        } else {
+            bn_from_int((1 << w) - 1, &mask);  // mask = ((2**w) - 1)
+            bn_and(&mask, &k, &mask);
+            arr[i++] = bn_to_int(&mask);
+            for (int j = 0; j < w - 1; j++) {
+                arr[i++] = 0;
+            }
+            bn_rsh(&k, w, &k);
+        }
+	}
+	bn_clear(&mask);
+
+	result = malloc(sizeof(wsliding_t));
+    result->w = w;
+    result->length = 0;
+    result->data = NULL;
+    // Revert, strip the repr and return.
+    for (int j = i - 1; j >= 0; j--) {
+        if (result->data == NULL) {
+            if (arr[j]) {
+                result->length = j + 1;
+                result->data = calloc(result->length, sizeof(uint8_t));
+                result->data[0] = arr[j];
+            }
+        } else {
+            result->data[result->length - j - 1] = arr[j];
+        }
+    }
+
+exit_mask:
+    bn_clear(&k);
+exit_k:
+	return result;
+}
+
+small_base_t *bn_convert_base_small(const bn_t *bn, int m) {
+    small_base_t *result = NULL;
+
+    bn_t k;
+	if (mp_init(&k) != BN_OKAY) {
+		goto exit_k;
+	}
+	bn_copy(bn, &k);
+
+    int len = 0;
+    if (mp_log_n(&k, m, &len) != BN_OKAY) {
+        goto exit_len;
+    }
+
+    result = malloc(sizeof(small_base_t));
+    result->length = len + 1;
+    result->data = calloc(result->length, sizeof(int));
+    result->m = m;
+
+    int i = 0;
+    mp_digit val = 0;
+    while (!bn_is_0(&k) && !(bn_get_sign(&k) == BN_NEG)) {
+        if (mp_div_d(&k, m, &k, &val) != BN_OKAY) {
+            free(result->data);
+            free(result);
+            goto exit_len;
+        }
+        result->data[i++] = val;
+    }
+
+exit_len:
+    bn_clear(&k);
+exit_k:
+    return result;
+}
+
+large_base_t *bn_convert_base_large(const bn_t *bn, const bn_t *m) {
+    large_base_t *result = NULL;
+
+    bn_t k;
+	if (mp_init(&k) != BN_OKAY) {
+		goto exit_k;
+	}
+	bn_copy(bn, &k);
+
+    int len = 0;
+    if (mp_log(&k, m, &len) != BN_OKAY) {
+        goto exit_len;
+    }
+
+    result = malloc(sizeof(large_base_t));
+    result->length = len + 1;
+    result->data = calloc(result->length, sizeof(bn_t));
+    bn_init(&result->m);
+    bn_copy(m, &result->m);
+
+    int i = 0;
+    while (!bn_is_0(&k) && !(bn_get_sign(&k) == BN_NEG)) {
+        bn_init(&result->data[i]);
+        if (mp_div(&k, m, &k, &result->data[i]) != BN_OKAY) {
+            free(result->data);
+            bn_clear(&result->m);
+            free(result);
+            goto exit_len;
+        }
+        i++;
+    }
+
+exit_len:
+    bn_clear(&k);
+exit_k:
+    return result;
 }

@@ -169,7 +169,9 @@ void KeccakP200_Permute_18rounds(void *argState)
 
 void KeccakP200_ExtractBytes(const void *state, unsigned char *data, unsigned int offset, unsigned int length)
 {
-    memcpy(data, (UINT8*)state+offset, length);
+    if (length) {
+        memcpy(data, (UINT8*)state+offset, length);
+    }
 }
 
 /* ---------------------------------------------------------------- */

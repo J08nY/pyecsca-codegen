@@ -6,6 +6,10 @@ PLATFORM = {{ platform }}
 
 CDEFS += -DHASH={{ hash_type }} -DMOD_RAND={{ mod_rand }} -DREDUCTION={{ reduction }} -DMUL={{ mul }} -DSQR={{ sqr }}
 
+{%- if defines %}
+CDEFS += {%- for def, value in defines.items() -%}-D{{def}}={{value}} {%- endfor -%}
+{%- endif %}
+
 MKDIR_LIST += hash prng asn1 bn gen
 
 EXTRAINCDIRS += hash prng asn1 bn gen tommath

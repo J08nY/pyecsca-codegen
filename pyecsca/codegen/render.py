@@ -7,15 +7,30 @@ from os import makedirs
 from typing import Optional, List, Set, Mapping, MutableMapping, Any, Tuple
 
 from jinja2 import Environment, PackageLoader
-from importlib_resources import files, as_file
+from importlib_resources import files
 from public import public
 from pyecsca.ec.configuration import HashType, RandomMod, Reduction, Multiplication, Squaring
 from pyecsca.ec.coordinates import CoordinateModel
 from pyecsca.ec.formula import Formula
 from pyecsca.ec.model import CurveModel
-from pyecsca.ec.mult import (ScalarMultiplier, LTRMultiplier, RTLMultiplier, CoronMultiplier,
-                             LadderMultiplier, SimpleLadderMultiplier, DifferentialLadderMultiplier,
-                             BinaryNAFMultiplier)
+from pyecsca.ec.mult import (
+    ScalarMultiplier,
+    LTRMultiplier,
+    RTLMultiplier,
+    CoronMultiplier,
+    LadderMultiplier,
+    SimpleLadderMultiplier,
+    DifferentialLadderMultiplier,
+    BinaryNAFMultiplier,
+    WindowNAFMultiplier,
+    SlidingWindowMultiplier,
+    FixedWindowLTRMultiplier,
+    FullPrecompMultiplier,
+    BGMWMultiplier,
+    CombMultiplier,
+    AccumulationOrder,
+    ProcessingDirection
+)
 from pyecsca.ec.op import OpType, CodeOp
 
 from pyecsca.codegen.common import Platform, DeviceConfiguration
@@ -25,6 +40,9 @@ env = Environment(
 )
 
 env.globals["isinstance"] = isinstance
+env.globals["bin"] = bin
+env.globals["AccumulationOrder"] = AccumulationOrder
+env.globals["ProcessingDirection"] = ProcessingDirection
 
 
 def render_op(op: OpType, result: str, left: str, right: str, mod: str, red: str) -> Optional[str]:
@@ -148,7 +166,7 @@ def transform_ops(ops: List[CodeOp], parameters: List[str], outputs: Set[str],
                 frees=frees, returns=returns)
 
 
-def render_coords_impl(coords: CoordinateModel) -> str:
+def render_coords_impl(coords: CoordinateModel, accumulation_order: Optional[AccumulationOrder]) -> str:
     ops = []
     for s in coords.satisfying:
         try:
@@ -168,7 +186,8 @@ def render_coords_impl(coords: CoordinateModel) -> str:
     namespace["frees"] = {}
 
     return env.get_template("point.c").render(variables=coords.variables, **namespace,
-                                              to_affine_rets=returns, to_affine_frees=frees)
+                                              to_affine_rets=returns, to_affine_frees=frees,
+                                              accumulation_order=accumulation_order)
 
 
 def render_formulas_impl(formulas: Set[Formula]) -> str:
@@ -205,7 +224,13 @@ def render_scalarmult_impl(scalarmult: ScalarMultiplier) -> str:
                                              LadderMultiplier=LadderMultiplier,
                                              SimpleLadderMultiplier=SimpleLadderMultiplier,
                                              DifferentialLadderMultiplier=DifferentialLadderMultiplier,
-                                             BinaryNAFMultiplier=BinaryNAFMultiplier)
+                                             BinaryNAFMultiplier=BinaryNAFMultiplier,
+                                             WindowNAFMultiplier=WindowNAFMultiplier,
+                                             SlidingWindowMultiplier=SlidingWindowMultiplier,
+                                             FixedWindowLTRMultiplier=FixedWindowLTRMultiplier,
+                                             FullPrecompMultiplier=FullPrecompMultiplier,
+                                             BGMWMultiplier=BGMWMultiplier,
+                                             CombMultiplier=CombMultiplier)
 
 
 def render_action() -> str:
@@ -225,10 +250,10 @@ def render_main(model: CurveModel, coords: CoordinateModel, keygen: bool, ecdh: 
 
 
 def render_makefile(platform: Platform, hash_type: HashType, mod_rand: RandomMod,
-                    reduction: Reduction, mul: Multiplication, sqr: Squaring) -> str:
+                    reduction: Reduction, mul: Multiplication, sqr: Squaring, defines: Optional[MutableMapping[str, Any]]) -> str:
     return env.get_template("Makefile").render(platform=str(platform), hash_type=str(hash_type),
                                                mod_rand=str(mod_rand), reduction=str(reduction),
-                                               mul=str(mul), sqr=str(sqr))
+                                               mul=str(mul), sqr=str(sqr), defines=defines)
 
 
 def save_render(dir: str, fname: str, rendered: str):
@@ -253,11 +278,11 @@ def render(config: DeviceConfiguration) -> Tuple[str, str, str]:
     makedirs(gen_dir, exist_ok=True)
 
     save_render(temp, "Makefile",
-                render_makefile(config.platform, config.hash_type, config.mod_rand, config.red, config.mult, config.sqr))
+                render_makefile(config.platform, config.hash_type, config.mod_rand, config.red, config.mult, config.sqr, config.defines))
     save_render(temp, "main.c",
                 render_main(config.model, config.coords, config.keygen, config.ecdh, config.ecdsa))
     save_render(gen_dir, "defs.h", render_defs(config.model, config.coords))
-    save_render(gen_dir, "point.c", render_coords_impl(config.coords))
+    save_render(gen_dir, "point.c", render_coords_impl(config.coords, getattr(config.scalarmult, "accumulation_order", None)))
     save_render(gen_dir, "formulas.c", render_formulas_impl(config.formulas))
     for formula in config.formulas:
         save_render(gen_dir, f"formula_{formula.shortname}.c",
