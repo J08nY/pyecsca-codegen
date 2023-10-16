@@ -2,7 +2,7 @@
 #include "point.h"
 
 void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, point_t *out) {
-	point_t *p0 = point_copy(&curve->neutral);
+	point_t *p0 = point_copy(curve->neutral);
 	point_t *p1 = point_copy(point);
 	{%- if scalarmult.complete %}
 		int nbits = bn_bit_length(&curve->n) - 1;
