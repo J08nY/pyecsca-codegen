@@ -226,15 +226,9 @@ class SimulatorTarget(Target):
         self.trace.extend(self.simulator.trace)
         self.simulator.reset()
 
-    def hook_result(self, simulator) -> None:
-        self.result.append(simulator['r0']) 
-        self.result.append(simulator['r1']) 
-        self.result.append(simulator['r2']) 
-
     def connect(self, **kwargs) -> None:
         self.simulator.load(kwargs["binary"])
         self.simulator.setup()
-        self.simulator.hook_bypass("simpleserial_put", self.hook_result)
         self.simulator.start(self.simulator.functions['init_implementation'] | 1, 0) 
         self.simulator.reset()
 
@@ -243,30 +237,40 @@ class SimulatorTarget(Target):
         self.__simulate(command, 'cmd_set_params')
         self.params = params
 
-    def scalar_mult(self, scalar: int, point: Point) -> Point:
-        command = cmd_scalar_mult(scalar, point)
-        self.__simulate(command, 'cmd_scalar_mult')
-        res_adress = self.result[2]
-        point_length = self.result[1] // len(self.coords.variables)  
-        params = {var: Mod(int.from_bytes(self.simulator[res_adress + i * point_length:
+    def __scalar_mult_hook(self, simulator) -> None:
+        point_length = simulator['r1'] // len(self.coords.variables)
+        res_adress = simulator['r2']
+        self.result.append({var: Mod(int.from_bytes(simulator[res_adress + i * point_length:
                                                          res_adress + (i + 1) * point_length], 'big'), 
                                                          self.params.curve.prime)
-                  for i, var in enumerate(self.coords.variables)}
+                  for i, var in enumerate(self.coords.variables)})
+
+    def scalar_mult(self, scalar: int, point: Point) -> Point:
         self.result = []
-        return Point(self.coords, **params)
+        self.simulator.hook_bypass("simpleserial_put", self.__scalar_mult_hook)
+        command = cmd_scalar_mult(scalar, point)
+        self.__simulate(command, 'cmd_scalar_mult')
+        return Point(self.coords, **self.result[0])
 
     def init_prng(self, seed: bytes) -> None:
         command = cmd_init_prng(seed)
         self.__simulate(command, 'cmd_init_prng')
         self.seed = seed
 
+    def __generate_hook(self, simulator) -> None:
+        key_length = simulator['r1']
+        key_bytes = simulator[simulator['r2']: simulator['r2'] + key_length]
+        self.result.append(key_length)
+        self.result.append(key_bytes)
+
     def generate(self) -> Tuple[int, Point]:
+        self.result = []
+        self.simulator.hook_bypass("simpleserial_put", self.__generate_hook)
         command = cmd_generate()
         self.__simulate(command, 'cmd_generate')
-        priv = int.from_bytes(self.simulator[self.result[2]:self.result[2] + self.result[1]], 'big')
-        pub_x = int.from_bytes(self.simulator[self.result[5]:self.result[5] + self.result[4] // 2], 'big')
-        pub_y = int.from_bytes(self.simulator[self.result[5] + self.result[4] // 2:self.result[5] + self.result[4]] ,'big')
-        self.result = []
+        priv = int.from_bytes(self.result[1], 'big')
+        pub_x = int.from_bytes(self.result[3][0:self.result[2] // 2], 'big')
+        pub_y = int.from_bytes(self.result[3][self.result[2] // 2:self.result[2]] ,'big')
         return priv, Point(AffineCoordinateModel(self.model), x = Mod(pub_x, self.params.curve.prime), 
                     y = Mod(pub_y, self.params.curve.prime))
 
@@ -280,26 +284,31 @@ class SimulatorTarget(Target):
         self.__simulate(command, 'cmd_set_pubkey')
         self.pubkey = pubkey
 
+    def __ec_hook(self, simulator) -> None:
+        self.result.append(simulator[simulator['r2']:simulator['r2'] + simulator['r1']])
+
     def ecdh(self, other_pubkey: Point) -> bytes:
+        self.result = []
+        self.simulator.hook_bypass("simpleserial_put", self.__ec_hook)
         command = cmd_ecdh(other_pubkey)
         self.__simulate(command, 'cmd_ecdh')
-        shared_secret = self.simulator[self.result[2]:self.result[2] + self.result[1]]
-        self.result = []
+        shared_secret = self.result[0]
         return shared_secret
 
     def ecdsa_sign(self, data: bytes) -> bytes:
+        self.result = []
+        self.simulator.hook_bypass("simpleserial_put", self.__ec_hook)
         command = cmd_ecdsa_sign(data)
         self.__simulate(command, 'cmd_ecdsa_sign')
-        signature = self.simulator[self.result[2]:self.result[2] + self.result[1]]
-        self.result = []
+        signature = self.result[0]
         return signature
 
     def ecdsa_verify(self, data: bytes, signature: bytes) -> bool:
+        self.result = []
+        self.simulator.hook_bypass("simpleserial_put", self.__ec_hook)
         command = cmd_ecdsa_verify(data, signature)
         self.__simulate(command, 'cmd_ecdsa_verify')
-        res = self.simulator[self.result[2]:self.result[2] + self.result[1]]
-        self.result = []
-        return bool(int.from_bytes(res, 'big'))
+        return bool(int.from_bytes(self.result[0], 'big'))
     
     def set_strigger(self):
         pass
