@@ -8,7 +8,7 @@ from pyecsca.ec.signature import ECDSA_SHA1, SignatureResult
 from rainbow import TraceConfig, HammingWeight
 
 from pyecsca.codegen.builder import build_impl
-from pyecsca.codegen.client import SimulatorTarget
+from pyecsca.codegen.client import EmulatorTarget
 
 from pyecsca.ec.curve import EllipticCurve
 from pyecsca.ec.mod import Mod
@@ -58,7 +58,7 @@ def do_basic_test(
                 ".",
             ],
         )
-        target = SimulatorTarget(params.curve.model, params.curve.coordinate_model)
+        target = EmulatorTarget(params.curve.model, params.curve.coordinate_model)
         target.connect(binary=join(tmpdir, "pyecsca-codegen-CW308_STM32F3.elf"))
         target.set_params(params)
         formula_instances = [
