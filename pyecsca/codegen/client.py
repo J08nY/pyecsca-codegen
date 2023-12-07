@@ -8,6 +8,7 @@ from typing import Mapping, Union, Optional, Tuple
 
 import chipwhisperer as cw
 import click
+import numpy as np
 from chipwhisperer.capture.api.programmers import STM32FProgrammer, XMEGAProgrammer
 from chipwhisperer.capture.targets import SimpleSerial
 from public import public
@@ -18,11 +19,13 @@ from pyecsca.ec.params import DomainParameters, get_params
 from pyecsca.ec.point import Point, InfinityPoint
 from pyecsca.sca.target import (Target, SimpleSerialTarget, ChipWhispererTarget, BinaryTarget, Flashable,
                                 SimpleSerialMessage as SMessage)
+from pyecsca.sca.trace import Trace
 
 from .common import wrap_enum, Platform, get_model, get_coords
 
 from rainbow.devices import rainbow_stm32f215
 from rainbow import TraceConfig, Print
+
 
 
 class Triggers(IntFlag):
@@ -309,6 +312,12 @@ class EmulatorTarget(Target):
         command = cmd_ecdsa_verify(data, signature)
         self.__emulate(command, 'cmd_ecdsa_verify')
         return bool(int.from_bytes(self.result[0], 'big'))
+    
+    def transform_trace(self) -> Trace:
+        temp_tr = []
+        for sample in self.trace:
+            temp_tr.append(sample['register'])
+        return Trace(np.array(temp_tr))
     
     def set_strigger(self):
         pass
