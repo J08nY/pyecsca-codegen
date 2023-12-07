@@ -6,9 +6,11 @@
 
 {{ ops.render_static_init(allocations, formula.shortname) }}
 
+{{ ops.render_static_zero(allocations, formula.shortname) }}
+
 {{ ops.render_static_clear(frees, formula.shortname) }}
 
-void point_scl(const point_t *one, const curve_t *curve, point_t *out_one) {
+__attribute__((noinline)) void point_scl(const point_t *one, const curve_t *curve, point_t *out_one) {
 	{{ start_action("scl") }}
 	//NOP_128();
 	{%- if short_circuit %}

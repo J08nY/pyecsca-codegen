@@ -53,12 +53,13 @@
 
 {%- endif %}
 
-
+#include "formulas.h"
 #include "action.h"
 {% from "action.c" import start_action, end_action %}
 
 void scalar_mult(bn_t *scalar, point_t *point, curve_t *curve, point_t *out) {
 	{{ start_action("mult") }}
+	formulas_zero();
 	scalar_mult_inner(scalar, point, curve, out);
 	{{ end_action("mult") }}
 }

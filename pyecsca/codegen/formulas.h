@@ -3,6 +3,8 @@
 
 void formulas_init(void);
 
+void formulas_zero(void);
+
 void formulas_clear(void);
 
 #endif //FORMULAS_H_

@@ -6,9 +6,11 @@
 
 {{ ops.render_static_init(allocations, formula.shortname) }}
 
+{{ ops.render_static_zero(allocations, formula.shortname) }}
+
 {{ ops.render_static_clear(frees, formula.shortname) }}
 
-void point_ladd(const point_t *one, const point_t *other, const point_t *diff, const curve_t *curve, point_t *out_one, point_t *out_other) {
+__attribute__((noinline)) void point_ladd(const point_t *one, const point_t *other, const point_t *diff, const curve_t *curve, point_t *out_one, point_t *out_other) {
 	{{ start_action("ladd") }}
 	//NOP_128();
 	// TODO: short-circuits

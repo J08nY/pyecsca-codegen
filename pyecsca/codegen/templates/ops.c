@@ -55,6 +55,15 @@
 	}
 {%- endmacro %}
 
+{% macro render_static_zero(allocations, name) -%}
+	void point_{{ name }}_zero(void) {
+		{%- for alloc in allocations -%}
+		    bn_from_int(0, &{{alloc}});
+		{%- endfor -%}
+	}
+{%- endmacro %}
+
+
 {% macro render_static_clear(frees, name) -%}
 	void point_{{ name }}_clear(void) {
 		{{ render_frees(frees) }}

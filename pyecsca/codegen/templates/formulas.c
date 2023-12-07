@@ -8,6 +8,12 @@ void formulas_init(void) {
 	{%- endfor %}
 }
 
+void formulas_zero(void) {
+    {%- for name in names %}
+	point_{{ name }}_zero();
+	{%- endfor %}
+}
+
 void formulas_clear(void) {
 	{%- for name in names %}
 	point_{{ name }}_clear();
