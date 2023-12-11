@@ -231,3 +231,33 @@ def test_ecdsa(mult_name, mult_class, cli_runner, curve32):
         True,
         False,
     )
+
+
+def test_tracing(cli_runner, curve32):
+    formulas = ["add-1998-cmo", "dbl-1998-cmo"]
+    with cli_runner.isolated_filesystem() as tmpdir:
+        cli_runner.invoke(
+            build_impl,
+            [
+                "--platform",
+                "STM32F3",
+                "--ecdsa",
+                "--ecdh",
+                "--red",
+                "MONTGOMERY",
+                "-D",
+                "BN_NON_CONST",
+                curve32.curve.model.shortname,
+                curve32.curve.coordinate_model.name,
+                *formulas,
+                f"ltr()",
+                ".",
+            ],
+        )
+        target = EmulatorTarget(curve32.curve.model, curve32.curve.coordinate_model, trace_config=TraceConfig(register=HammingWeight()))
+        target.connect(binary=join(tmpdir, "pyecsca-codegen-CW308_STM32F3.elf"))
+        target.set_params(curve32)
+        target.trace = []
+        target.scalar_mult(2355498743, curve32.generator)
+        trace = target.transform_trace()
+        assert trace is not None

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import bisect
 import re
 from binascii import hexlify, unhexlify
 from enum import IntFlag
@@ -204,7 +205,7 @@ class EmulatorTarget(Target):
     pubkey: Optional[Point]
     trace: list
 
-    def __init__(self, model: CurveModel, coords: CoordinateModel, print_config: Print = Print(0), 
+    def __init__(self, model: CurveModel, coords: CoordinateModel, print_config: Print = Print(0),
                  trace_config: TraceConfig = TraceConfig(), allow_breakpoints: bool = False):
         super().__init__()
         self.emulator = rainbow_stm32f215(print_config=print_config, trace_config=trace_config,
@@ -217,7 +218,9 @@ class EmulatorTarget(Target):
         self.params = None
         self.privkey = None
         self.pubkey = None
-    
+        self._funcs = []
+        self._addrs = []
+
     def __emulate(self, command: str, function: str) -> None:
         data = unhexlify(command[1:])
         length = len(data)
@@ -232,8 +235,13 @@ class EmulatorTarget(Target):
     def connect(self, **kwargs) -> None:
         self.emulator.load(kwargs["binary"])
         self.emulator.setup()
-        self.emulator.start(self.emulator.functions['init_implementation'] | 1, 0) 
+        self.emulator.start(self.emulator.functions['init_implementation'] | 1, 0)
         self.emulator.reset()
+        # Compute the function map from the emulator.
+        addr_map = [(addr, name) for name, addr in self.emulator.functions.items()]
+        addr_map.sort()
+        self._addrs = [addr - 1 for addr, name in addr_map]
+        self._funcs = [name for addr, name in addr_map]
 
     def set_params(self, params: DomainParameters) -> None:
         command = cmd_set_params(params)
@@ -244,7 +252,7 @@ class EmulatorTarget(Target):
         point_length = emulator['r1'] // len(self.coords.variables)
         res_adress = emulator['r2']
         self.result.append({var: Mod(int.from_bytes(emulator[res_adress + i * point_length:
-                                                         res_adress + (i + 1) * point_length], 'big'), 
+                                                         res_adress + (i + 1) * point_length], 'big'),
                                                          self.params.curve.prime)
                   for i, var in enumerate(self.coords.variables)})
 
@@ -274,7 +282,7 @@ class EmulatorTarget(Target):
         priv = int.from_bytes(self.result[1], 'big')
         pub_x = int.from_bytes(self.result[3][0:self.result[2] // 2], 'big')
         pub_y = int.from_bytes(self.result[3][self.result[2] // 2:self.result[2]] ,'big')
-        return priv, Point(AffineCoordinateModel(self.model), x = Mod(pub_x, self.params.curve.prime), 
+        return priv, Point(AffineCoordinateModel(self.model), x = Mod(pub_x, self.params.curve.prime),
                     y = Mod(pub_y, self.params.curve.prime))
 
     def set_privkey(self, privkey: int) -> None:
@@ -312,14 +320,37 @@ class EmulatorTarget(Target):
         command = cmd_ecdsa_verify(data, signature)
         self.__emulate(command, 'cmd_ecdsa_verify')
         return bool(int.from_bytes(self.result[0], 'big'))
-    
-    def transform_trace(self) -> Trace:
-        temp_tr = []
-        for sample in self.trace:
-            temp_tr.append(sample['register'])
-        return Trace(np.array(temp_tr))
-    
-    def set_strigger(self):
+
+    def transform_trace(self, filter_malloc: bool = True, save_instructions: bool = False) -> Trace:
+        samples = []
+        instructions = []
+        inside_malloc = False
+        # Get the trace but filter out known non-CT malloc functions.
+        for event in self.trace:
+            sample = event.get("register", 0)
+            instruction = event.get("instruction", None)
+            if instruction is None or not filter_malloc:
+                samples.append(sample)
+                continue
+            addr = int(instruction.split(" ")[1], 16)
+            func = self._funcs[bisect.bisect(self._addrs, addr) - 1]
+            if func == "__malloc_lock":
+                inside_malloc = True
+            if func == "__malloc_unlock":
+                inside_malloc = False
+            if not inside_malloc and func not in ("free", "_free_r",
+                                                  "calloc", "_calloc_r",
+                                                  "realloc", "_realloc_r",
+                                                  "malloc", "_malloc_r",
+                                                  "__malloc_lock", "__malloc_unlock",
+                                                  "_sbrk_r", "_sbrk",
+                                                  "__udivmoddi4", "__aeabi_uldivmod"):
+                samples.append(sample)
+                if save_instructions:
+                    instructions.append(instruction)
+        return Trace(np.array(samples, dtype=np.int32), meta={"instructions": instructions})
+
+    def set_trigger(self):
         pass
 
     def debug(self) -> Tuple[str, str]:
@@ -329,7 +360,7 @@ class EmulatorTarget(Target):
         pass
 
     def disconnect(self):
-        self.emulator.start(self.emulator.functions['deinit'] | 1, 0) 
+        self.emulator.start(self.emulator.functions['deinit'] | 1, 0)
         self.emulator.reset()
 
 
