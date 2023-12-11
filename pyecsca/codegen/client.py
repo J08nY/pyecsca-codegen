@@ -8,6 +8,7 @@ from typing import Mapping, Union, Optional, Tuple
 
 import chipwhisperer as cw
 import click
+import numpy as np
 from chipwhisperer.capture.api.programmers import STM32FProgrammer, XMEGAProgrammer
 from chipwhisperer.capture.targets import SimpleSerial
 from public import public
@@ -18,11 +19,13 @@ from pyecsca.ec.params import DomainParameters, get_params
 from pyecsca.ec.point import Point, InfinityPoint
 from pyecsca.sca.target import (Target, SimpleSerialTarget, ChipWhispererTarget, BinaryTarget, Flashable,
                                 SimpleSerialMessage as SMessage)
+from pyecsca.sca.trace import Trace
 
 from .common import wrap_enum, Platform, get_model, get_coords
 
 from rainbow.devices import rainbow_stm32f215
 from rainbow import TraceConfig, Print
+
 
 
 class Triggers(IntFlag):
@@ -189,9 +192,9 @@ def cmd_debug() -> str:
     return "d"
 
 
-class SimulatorTarget(Target):
+class EmulatorTarget(Target):
 
-    simulator: rainbow_stm32f215
+    emulator: rainbow_stm32f215
     result: list
     model: CurveModel
     coords: CoordinateModel
@@ -204,7 +207,7 @@ class SimulatorTarget(Target):
     def __init__(self, model: CurveModel, coords: CoordinateModel, print_config: Print = Print(0), 
                  trace_config: TraceConfig = TraceConfig(), allow_breakpoints: bool = False):
         super().__init__()
-        self.simulator = rainbow_stm32f215(print_config=print_config, trace_config=trace_config,
+        self.emulator = rainbow_stm32f215(print_config=print_config, trace_config=trace_config,
                                             allow_stubs=True, allow_breakpoints=allow_breakpoints)
         self.result = []
         self.trace = []
@@ -215,59 +218,59 @@ class SimulatorTarget(Target):
         self.privkey = None
         self.pubkey = None
     
-    def __simulate(self, command: str, function: str) -> None:
+    def __emulate(self, command: str, function: str) -> None:
         data = unhexlify(command[1:])
         length = len(data)
         data_adress = 0xDEAD0000
-        self.simulator[data_adress] = data
-        self.simulator['r0'] = data_adress
-        self.simulator['r1'] = length
-        self.simulator.start(self.simulator.functions[function] | 1, 0)
-        self.trace.extend(self.simulator.trace)
-        self.simulator.reset()
+        self.emulator[data_adress] = data
+        self.emulator['r0'] = data_adress
+        self.emulator['r1'] = length
+        self.emulator.start(self.emulator.functions[function] | 1, 0)
+        self.trace.extend(self.emulator.trace)
+        self.emulator.reset()
 
     def connect(self, **kwargs) -> None:
-        self.simulator.load(kwargs["binary"])
-        self.simulator.setup()
-        self.simulator.start(self.simulator.functions['init_implementation'] | 1, 0) 
-        self.simulator.reset()
+        self.emulator.load(kwargs["binary"])
+        self.emulator.setup()
+        self.emulator.start(self.emulator.functions['init_implementation'] | 1, 0) 
+        self.emulator.reset()
 
     def set_params(self, params: DomainParameters) -> None:
         command = cmd_set_params(params)
-        self.__simulate(command, 'cmd_set_params')
+        self.__emulate(command, 'cmd_set_params')
         self.params = params
 
-    def __scalar_mult_hook(self, simulator) -> None:
-        point_length = simulator['r1'] // len(self.coords.variables)
-        res_adress = simulator['r2']
-        self.result.append({var: Mod(int.from_bytes(simulator[res_adress + i * point_length:
+    def __scalar_mult_hook(self, emulator) -> None:
+        point_length = emulator['r1'] // len(self.coords.variables)
+        res_adress = emulator['r2']
+        self.result.append({var: Mod(int.from_bytes(emulator[res_adress + i * point_length:
                                                          res_adress + (i + 1) * point_length], 'big'), 
                                                          self.params.curve.prime)
                   for i, var in enumerate(self.coords.variables)})
 
     def scalar_mult(self, scalar: int, point: Point) -> Point:
         self.result = []
-        self.simulator.hook_bypass("simpleserial_put", self.__scalar_mult_hook)
+        self.emulator.hook_bypass("simpleserial_put", self.__scalar_mult_hook)
         command = cmd_scalar_mult(scalar, point)
-        self.__simulate(command, 'cmd_scalar_mult')
+        self.__emulate(command, 'cmd_scalar_mult')
         return Point(self.coords, **self.result[0])
 
     def init_prng(self, seed: bytes) -> None:
         command = cmd_init_prng(seed)
-        self.__simulate(command, 'cmd_init_prng')
+        self.__emulate(command, 'cmd_init_prng')
         self.seed = seed
 
-    def __generate_hook(self, simulator) -> None:
-        key_length = simulator['r1']
-        key_bytes = simulator[simulator['r2']: simulator['r2'] + key_length]
+    def __generate_hook(self, emulator) -> None:
+        key_length = emulator['r1']
+        key_bytes = emulator[emulator['r2']: emulator['r2'] + key_length]
         self.result.append(key_length)
         self.result.append(key_bytes)
 
     def generate(self) -> Tuple[int, Point]:
         self.result = []
-        self.simulator.hook_bypass("simpleserial_put", self.__generate_hook)
+        self.emulator.hook_bypass("simpleserial_put", self.__generate_hook)
         command = cmd_generate()
-        self.__simulate(command, 'cmd_generate')
+        self.__emulate(command, 'cmd_generate')
         priv = int.from_bytes(self.result[1], 'big')
         pub_x = int.from_bytes(self.result[3][0:self.result[2] // 2], 'big')
         pub_y = int.from_bytes(self.result[3][self.result[2] // 2:self.result[2]] ,'big')
@@ -276,12 +279,12 @@ class SimulatorTarget(Target):
 
     def set_privkey(self, privkey: int) -> None:
         command = cmd_set_privkey(privkey)
-        self.__simulate(command, 'cmd_set_privkey')
+        self.__emulate(command, 'cmd_set_privkey')
         self.privkey = privkey
 
     def set_pubkey(self, pubkey: Point) -> None:
         command = cmd_set_pubkey(pubkey)
-        self.__simulate(command, 'cmd_set_pubkey')
+        self.__emulate(command, 'cmd_set_pubkey')
         self.pubkey = pubkey
 
     def __ec_hook(self, simulator) -> None:
@@ -289,26 +292,32 @@ class SimulatorTarget(Target):
 
     def ecdh(self, other_pubkey: Point) -> bytes:
         self.result = []
-        self.simulator.hook_bypass("simpleserial_put", self.__ec_hook)
+        self.emulator.hook_bypass("simpleserial_put", self.__ec_hook)
         command = cmd_ecdh(other_pubkey)
-        self.__simulate(command, 'cmd_ecdh')
+        self.__emulate(command, 'cmd_ecdh')
         shared_secret = self.result[0]
         return shared_secret
 
     def ecdsa_sign(self, data: bytes) -> bytes:
         self.result = []
-        self.simulator.hook_bypass("simpleserial_put", self.__ec_hook)
+        self.emulator.hook_bypass("simpleserial_put", self.__ec_hook)
         command = cmd_ecdsa_sign(data)
-        self.__simulate(command, 'cmd_ecdsa_sign')
+        self.__emulate(command, 'cmd_ecdsa_sign')
         signature = self.result[0]
         return signature
 
     def ecdsa_verify(self, data: bytes, signature: bytes) -> bool:
         self.result = []
-        self.simulator.hook_bypass("simpleserial_put", self.__ec_hook)
+        self.emulator.hook_bypass("simpleserial_put", self.__ec_hook)
         command = cmd_ecdsa_verify(data, signature)
-        self.__simulate(command, 'cmd_ecdsa_verify')
+        self.__emulate(command, 'cmd_ecdsa_verify')
         return bool(int.from_bytes(self.result[0], 'big'))
+    
+    def transform_trace(self) -> Trace:
+        temp_tr = []
+        for sample in self.trace:
+            temp_tr.append(sample['register'])
+        return Trace(np.array(temp_tr))
     
     def set_strigger(self):
         pass
@@ -320,8 +329,8 @@ class SimulatorTarget(Target):
         pass
 
     def disconnect(self):
-        self.simulator.start(self.simulator.functions['deinit'] | 1, 0) 
-        self.simulator.reset()
+        self.emulator.start(self.emulator.functions['deinit'] | 1, 0) 
+        self.emulator.reset()
 
 
 
