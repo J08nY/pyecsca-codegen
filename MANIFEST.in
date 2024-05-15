@@ -7,4 +7,5 @@ graft pyecsca/codegen/prng
 graft pyecsca/codegen/simpleserial
 graft pyecsca/codegen/templates
 graft pyecsca/codegen/tommath
+graft ext/
 recursive-include pyecsca/codegen *.h *.inc
