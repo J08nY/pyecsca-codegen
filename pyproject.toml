@@ -37,7 +37,7 @@
     "jinja2",
     "Click",
     "importlib-resources",
-    "rainbow @ git+https://github.com/Ledger-Donjon/rainbow@master"
+    "donjon-rainbow"
   ]
 
 [project.urls]
