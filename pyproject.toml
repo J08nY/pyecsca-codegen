@@ -4,10 +4,13 @@
 
 [project]
   name = "pyecsca-codegen"
-  version = "0.3.0"
+  version = "0.3.2"
   authors = [
     { name = "Jan Jancar", email = "johny@neuromancer.sk" },
     { name = "Andrej Batora"}
+  ]
+  maintainers = [
+    { name = "Jan Jancar", email = "johny@neuromancer.sk" }
   ]
   description = "Python Elliptic Curve cryptography Side Channel Analysis toolkit (codegen package)."
   readme = "README.md"

@@ -16,9 +16,8 @@ class CustomTommath(Command):
 
     def run(self) -> None:
         if self.build_lib:
-            subprocess.run(["make", "host", "nano", "stm32f0", "stm32f3"], cwd="ext")
-            tommath_dir = Path("pyecsca/codegen/tommath")
-            shutil.copytree(tommath_dir, self.build_lib / tommath_dir)
+            tommath_dir = Path("..") / self.build_lib / Path("pyecsca/codegen/tommath")
+            subprocess.run(["make", "host", "nano", "stm32f0", "stm32f3", f"TOMMATH_DIR={tommath_dir}"], cwd="ext")
             
 
 
