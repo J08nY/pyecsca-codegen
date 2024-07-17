@@ -1,3 +1,4 @@
+"""Rendering and building of implementation configurations."""
 import os
 import shutil
 import subprocess

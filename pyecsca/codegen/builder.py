@@ -1,4 +1,45 @@
 #!/usr/bin/env python3
+"""
+Builder script.
+
+Use it to render and build ECC implementations.
+
+Examples
+========
+
+To list available implementation choices use the ``list`` subcommand.
+
+.. code-block:: shell
+
+    builder list
+
+To go deeper and examine the coordinates for a given curve model, e.g. the Short-Weierstrass one, use:
+
+.. code-block:: shell
+
+    builder list shortw
+
+To list formulas for a given coordinate system and curve model, e.g. projective on Short-Weierstrass curves, use:
+
+.. code-block:: shell
+
+   builder list shortw projective
+
+The following example builds an implementation for the HOST architecture,
+using the short-Weierstrass curve model, projective coordinates, ``add-2007-bl`` and ``dbl-2007-bl``
+formulas with the left-to-right double-and-add scalar multiplier. Furthermore, it uses Barrett modular
+reduction.
+
+.. code-block:: shell
+
+    builder build --platform HOST --red BARRETT -v shortw projective add-2007-bl dbl-2007-bl "ltr()" .
+
+The following uses different formulas with the comb multiplier and specifies its width.
+
+.. code-block:: shell
+
+    builder build --platform HOST --red BARRETT -v shortw projective add-1998-cmo dbl-1998-cmo "comb(width=5)" .
+"""
 import re
 import shutil
 import subprocess
@@ -15,8 +56,8 @@ from pyecsca.ec.formula import Formula, AdditionFormula
 from pyecsca.ec.model import CurveModel
 from pyecsca.ec.mult import ScalarMultiplier, AccumulationOrder, ProcessingDirection
 
-from .render import render
-from .common import Platform, DeviceConfiguration, MULTIPLIERS, wrap_enum, get_model, get_coords
+from pyecsca.codegen.render import render
+from pyecsca.codegen.common import Platform, DeviceConfiguration, MULTIPLIERS, wrap_enum, get_model, get_coords
 
 
 def get_formula(ctx: click.Context, param, value: Optional[Tuple[str]]) -> List[Formula]:
@@ -28,7 +69,7 @@ def get_formula(ctx: click.Context, param, value: Optional[Tuple[str]]) -> List[
     for formula in value:
         if formula not in coords.formulas:
             raise click.BadParameter(
-                    "Formula '{}' is not a formula in '{}'.".format(formula, coords))
+                "Formula '{}' is not a formula in '{}'.".format(formula, coords))
         result.append(coords.formulas[formula])
     if len(set(formula.__class__ for formula in result)) != len(result):
         raise click.BadParameter("Duplicate formula types.")
@@ -40,8 +81,8 @@ def get_multiplier(ctx: click.Context, param, value: Optional[str]) -> Optional[
     if value is None:
         return None
     res = re.match(
-            "(?P<name>[a-zA-Z\-]+)\((?P<args>([a-zA-Z_]+ *= *[a-zA-Z0-9.]+, ?)*?([a-zA-Z_]+ *= *[a-zA-Z0-9.]+)*)\)",
-            value)
+        "(?P<name>[a-zA-Z\-]+)\((?P<args>([a-zA-Z_]+ *= *[a-zA-Z0-9.]+, ?)*?([a-zA-Z_]+ *= *[a-zA-Z0-9.]+)*)\)",
+        value)
     if not res:
         raise click.BadParameter("Couldn't parse multiplier spec: {}.".format(value))
     name = res.group("name")
@@ -59,18 +100,18 @@ def get_multiplier(ctx: click.Context, param, value: Optional[str]) -> Optional[
     if not all(
             any(issubclass(cls, required) for cls in classes) for required in mult_class.requires):
         raise click.BadParameter(
-                "Multiplier {} requires formulas: {}, got {}.".format(mult_class.__name__,
-                                                                      mult_class.requires, classes))
+            "Multiplier {} requires formulas: {}, got {}.".format(mult_class.__name__,
+                                                                  mult_class.requires, classes))
     globs = dict(globals())
     globs["AccumulationOrder"] = AccumulationOrder
     globs["ProcessingDirection"] = ProcessingDirection
     kwargs = eval("dict(" + args + ")", globs)
     required = set(
-            filter(lambda formula: any(isinstance(formula, cls) for cls in mult_class.requires),
-                   formulas))
+        filter(lambda formula: any(isinstance(formula, cls) for cls in mult_class.requires),
+               formulas))
     optional = set(
-            filter(lambda formula: any(isinstance(formula, cls) for cls in mult_class.optionals),
-                   formulas))
+        filter(lambda formula: any(isinstance(formula, cls) for cls in mult_class.optionals),
+               formulas))
     for formula in required.union(optional):
         kwargs[formula.shortname] = formula
     mult = mult_class(**kwargs)
@@ -240,27 +281,29 @@ def list_impl(model: Optional[CurveModel], coords: Optional[CoordinateModel],
         click.echo(model)
         for coord in model.coordinates.values():
             click.echo(
-                    "{}: {}, [{}]".format(coord.name, coord.full_name, ",".join(coord.variables)))
+                "{}: {}, [{}]".format(coord.name, coord.full_name, ",".join(coord.variables)))
         return
     if not model:
         click.echo(
-                click.wrap_text("Platform:\n\t" + ", ".join(Platform.names()),
-                                subsequent_indent="\t"))
+            click.wrap_text("Platform:\n\t" + ", ".join(Platform.names()),
+                            subsequent_indent="\t"))
         click.echo(
-                click.wrap_text("Hash type:\n\t" + ", ".join(HashType.names()),
-                                subsequent_indent="\t"))
+            click.wrap_text("Hash type:\n\t" + ", ".join(HashType.names()),
+                            subsequent_indent="\t"))
         click.echo(click.wrap_text("Modular Random:\n\t" + ", ".join(RandomMod.names()),
                                    subsequent_indent="\t"))
         click.echo(click.wrap_text("Multiplication:\n\t" + ", ".join(Multiplication.names()),
                                    subsequent_indent="\t"))
         click.echo(
-                click.wrap_text("Squaring:\n\t" + ", ".join(Squaring.names()),
-                                subsequent_indent="\t"))
+            click.wrap_text("Squaring:\n\t" + ", ".join(Squaring.names()),
+                            subsequent_indent="\t"))
         click.echo(click.wrap_text("Modular Reduction:\n\t" + ", ".join(Reduction.names()),
                                    subsequent_indent="\t"))
         click.echo(click.wrap_text(
-                "Scalar multplier:\n\t" + ", ".join(map(lambda m: m["name"][-1], MULTIPLIERS)),
-                subsequent_indent="\t"))
+            "Scalar multplier:\n\t" + ", ".join(map(lambda m: m["name"][-1], MULTIPLIERS)),
+            subsequent_indent="\t"))
+        click.echo(click.wrap_text("Curve Model:\n\t" + ", ".join(["shortw", "montgom", "edwards", "twisted"])))
+
 
 if __name__ == "__main__":
     main(obj={})

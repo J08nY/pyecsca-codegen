@@ -4,7 +4,7 @@ import pytest
 from click.testing import CliRunner
 
 from pyecsca.ec.key_agreement import ECDH_SHA1
-from pyecsca.ec.mod import Mod
+from pyecsca.ec.mod import mod
 from pyecsca.ec.mult import (
     LTRMultiplier,
     RTLMultiplier,
@@ -323,7 +323,7 @@ def test_ecdh(target, mult, secp128r1):
     for other_priv in other_privs:
         priv, pub = target.generate()
         other_pub = mult.multiply(other_priv)
-        ecdh = ECDH_SHA1(copy(mult), secp128r1, other_pub, Mod(priv, secp128r1.order))
+        ecdh = ECDH_SHA1(copy(mult), secp128r1, other_pub, mod(priv, secp128r1.order))
         result = target.ecdh(other_pub)
         expected = ecdh.perform()
         assert result == expected
@@ -343,7 +343,7 @@ def test_ecdsa(target, mult, secp128r1):
             secp128r1,
             mult.formulas["add"],
             pub.to_model(secp128r1.curve.coordinate_model, secp128r1.curve),
-            Mod(priv, secp128r1.order),
+            mod(priv, secp128r1.order),
         )
 
         signature_data = target.ecdsa_sign(message)

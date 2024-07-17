@@ -1,3 +1,4 @@
+"""Common codegen utilities."""
 from dataclasses import dataclass
 from typing import Type, Optional, MutableMapping, Any
 
@@ -21,6 +22,7 @@ from pyecsca.ec.mult import (
     FullPrecompMultiplier,
     BGMWMultiplier,
     CombMultiplier,
+    WindowBoothMultiplier,
 )
 
 
@@ -62,13 +64,13 @@ MULTIPLIERS = [
     {"name": ("wnaf", "WindowNAFMultiplier"), "class": WindowNAFMultiplier},
     {"name": ("sliding", "SlidingWindowMultiplier"), "class": SlidingWindowMultiplier},
     {"name": ("fixed", "FixedWindowLTRMultiplier"), "class": FixedWindowLTRMultiplier},
+    {"name": ("booth", "WindowBoothMultiplier"), "class": WindowBoothMultiplier},
     {"name": ("precomp", "FullPrecompMultiplier"), "class": FullPrecompMultiplier},
     {"name": ("bgmw", "BGMWMultiplier"), "class": BGMWMultiplier},
     {"name": ("comb", "CombMultiplier"), "class": CombMultiplier},
 ]
 
 
-@public
 def wrap_enum(enum_class: Type[EnumDefine]):
     def callback(ctx, param, value):
         try:
@@ -76,7 +78,7 @@ def wrap_enum(enum_class: Type[EnumDefine]):
             return res
         except Exception:
             raise click.BadParameter(
-                    "Cannot create {} enum from {}.".format(enum_class.__name__, value))
+                "Cannot create {} enum from {}.".format(enum_class.__name__, value))
 
     return callback
 
@@ -105,8 +107,8 @@ def get_coords(ctx: click.Context, param, value: Optional[str]) -> Optional[Coor
     model = ctx.obj["model"]
     if value not in model.coordinates:
         raise click.BadParameter(
-                "Coordinate model '{}' is not a model in '{}'.".format(value,
-                                                                       model.__class__.__name__))
+            "Coordinate model '{}' is not a model in '{}'.".format(value,
+                                                                   model.__class__.__name__))
     coords = model.coordinates[value]
     ctx.obj["coords"] = coords
     return coords

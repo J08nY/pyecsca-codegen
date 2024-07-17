@@ -1,4 +1,51 @@
 #!/usr/bin/env python3
+"""
+Client script.
+
+Use it to interact with the built implementations (and flash them if necessary).
+
+Examples
+========
+
+The following examples use the generated implementation in ``pyecsca-codegen-HOST.elf`` for the host
+architecture, which is assumed to use the Short-Weierstrass curve model with projective coordinates.
+
+The first example generates a keypair and exports it.
+
+.. code-block:: shell-session
+
+    $ client --platform HOST --fw ./pyecsca-codegen-HOST.elf shortw projective gen secg/secp128r1
+    (162938999268550597445809790209592423458, Point([x=111810799217268384317536017529141796945, y=309320541414531923178173772704935971498] in shortw/affine))
+    0.01743340492248535
+
+The following example does ECDH with the target, which first generates a keypair.
+
+.. code-block:: shell-session
+
+    $ client --platform HOST --fw ./pyecsca-codegen-HOST.elf shortw projective ecdh secg/secp128r1 122835813094999453922649270086793500655,326514220558629293368386081113307347349
+    Keypair: 162938999268550597445809790209592423458, [x=111810799217268384317536017529141796945, y=309320541414531923178173772704935971498]
+    ECDH result: 30567033074c9169e9355a7b348aa7511c3ae605
+
+The following example signs a message ``"something"`` using the target, which first generates a keypair.
+
+.. code-block:: shell-session
+
+    $ client --platform HOST --fw ./pyecsca-codegen-HOST.elf shortw projective ecdsa-sign secg/secp128r1 something
+    Keypair: 162938999268550597445809790209592423458, [x=111810799217268384317536017529141796945, y=309320541414531923178173772704935971498]
+    Signature: 30250211009dc6d5b03cffe0cbd5e829838ecb59e4021023496ba97cf1d816619fe626de2d07b6
+
+The following example verifies a signature on the message ``"something"`` using the target and the provided public key.
+
+.. code-block:: shell-session
+
+    $ client --platform HOST --fw ./pyecsca-codegen-HOST.elf shortw projective ecdsa-verify secg/secp128r1 111810799217268384317536017529141796945,309320541414531923178173772704935971498 something_else 30250211009dc6d5b03cffe0cbd5e829838ecb59e40210171c895d2d4f27850ff5f2a375ea22b7
+    Result: True
+
+.. note::
+    The implementation has a PRNG it uses to get randomness. This PRNG starts with a constant state.
+    You can use the ``--seed`` option to set a custom state.
+
+"""
 import bisect
 import re
 from binascii import hexlify, unhexlify
@@ -12,23 +59,22 @@ import click
 import numpy as np
 from chipwhisperer.capture.api.programmers import STM32FProgrammer, XMEGAProgrammer
 from chipwhisperer.capture.targets import SimpleSerial
+from rainbow.devices import rainbow_stm32f215
+from rainbow import TraceConfig, Print
 from public import public
+
 from pyecsca.ec.coordinates import CoordinateModel, AffineCoordinateModel
-from pyecsca.ec.mod import Mod
+from pyecsca.ec.mod import mod, Mod
 from pyecsca.ec.model import CurveModel
 from pyecsca.ec.params import DomainParameters, get_params
 from pyecsca.ec.point import Point, InfinityPoint
 from pyecsca.sca.target import (Target, SimpleSerialTarget, ChipWhispererTarget, BinaryTarget, Flashable,
                                 SimpleSerialMessage as SMessage)
 from pyecsca.sca.trace import Trace
-
-from .common import wrap_enum, Platform, get_model, get_coords
-
-from rainbow.devices import rainbow_stm32f215
-from rainbow import TraceConfig, Print
+from pyecsca.codegen.common import wrap_enum, Platform, get_model, get_coords
 
 
-
+@public
 class Triggers(IntFlag):
     """
     Actions that the implementation can trigger on.
@@ -193,8 +239,8 @@ def cmd_debug() -> str:
     return "d"
 
 
+@public
 class EmulatorTarget(Target):
-
     emulator: rainbow_stm32f215
     result: list
     model: CurveModel
@@ -209,7 +255,7 @@ class EmulatorTarget(Target):
                  trace_config: TraceConfig = TraceConfig(), allow_breakpoints: bool = False):
         super().__init__()
         self.emulator = rainbow_stm32f215(print_config=print_config, trace_config=trace_config,
-                                            allow_stubs=True, allow_breakpoints=allow_breakpoints)
+                                          allow_stubs=True, allow_breakpoints=allow_breakpoints)
         self.result = []
         self.trace = []
         self.model = model
@@ -251,10 +297,10 @@ class EmulatorTarget(Target):
     def __scalar_mult_hook(self, emulator) -> None:
         point_length = emulator['r1'] // len(self.coords.variables)
         res_adress = emulator['r2']
-        self.result.append({var: Mod(int.from_bytes(emulator[res_adress + i * point_length:
-                                                         res_adress + (i + 1) * point_length], 'big'),
-                                                         self.params.curve.prime)
-                  for i, var in enumerate(self.coords.variables)})
+        self.result.append({var: mod(int.from_bytes(emulator[res_adress + i * point_length:
+                                                             res_adress + (i + 1) * point_length], 'big'),
+                                     self.params.curve.prime)
+                            for i, var in enumerate(self.coords.variables)})
 
     def scalar_mult(self, scalar: int, point: Point) -> Point:
         self.result = []
@@ -281,9 +327,9 @@ class EmulatorTarget(Target):
         self.__emulate(command, 'cmd_generate')
         priv = int.from_bytes(self.result[1], 'big')
         pub_x = int.from_bytes(self.result[3][0:self.result[2] // 2], 'big')
-        pub_y = int.from_bytes(self.result[3][self.result[2] // 2:self.result[2]] ,'big')
-        return priv, Point(AffineCoordinateModel(self.model), x = Mod(pub_x, self.params.curve.prime),
-                    y = Mod(pub_y, self.params.curve.prime))
+        pub_y = int.from_bytes(self.result[3][self.result[2] // 2:self.result[2]], 'big')
+        return priv, Point(AffineCoordinateModel(self.model), x=mod(pub_x, self.params.curve.prime),
+                           y=mod(pub_y, self.params.curve.prime))
 
     def set_privkey(self, privkey: int) -> None:
         command = cmd_set_privkey(privkey)
@@ -364,7 +410,7 @@ class EmulatorTarget(Target):
         self.emulator.reset()
 
 
-
+@public
 class ImplTarget(SimpleSerialTarget):
     """
     A target that is based on an implementation built by pyecsca-codegen.
@@ -399,14 +445,26 @@ class ImplTarget(SimpleSerialTarget):
         self.trigger = None
 
     def init_prng(self, seed: bytes) -> None:
+        """
+        Init the PRNG using the `seed`.
+
+        """
         self.send_cmd(SMessage.from_raw(cmd_init_prng(seed)), self.timeout)
         self.seed = seed
 
     def set_params(self, params: DomainParameters) -> None:
+        """
+        Set the domain parameters on the target.
+        """
         self.send_cmd(SMessage.from_raw(cmd_set_params(params)), self.timeout)
         self.params = params
 
     def generate(self) -> Tuple[int, Point]:
+        """
+        Generate a keypair on the target and set it (and export it).
+
+        Requires that domain parameters are set up.
+        """
         resp = self.send_cmd(SMessage.from_raw(cmd_generate()), self.timeout)
         priv = resp["s"].data
         pub = resp["w"].data
@@ -414,52 +472,96 @@ class ImplTarget(SimpleSerialTarget):
         pub_len = len(pub)
         x = int(pub[:pub_len // 2], 16)
         y = int(pub[pub_len // 2:], 16)
-        self.pubkey = Point(AffineCoordinateModel(self.model), x=Mod(x, self.params.curve.prime),
-                            y=Mod(y, self.params.curve.prime))
+        self.pubkey = Point(AffineCoordinateModel(self.model), x=mod(x, self.params.curve.prime),
+                            y=mod(y, self.params.curve.prime))
         return self.privkey, self.pubkey
 
     def set_privkey(self, privkey: int) -> None:
+        """
+        Set the private key on the target.
+        """
         self.send_cmd(SMessage.from_raw(cmd_set_privkey(privkey)), self.timeout)
         self.privkey = privkey
 
     def set_pubkey(self, pubkey: Point) -> None:
+        """
+        Set the public key on the target.
+        """
         self.send_cmd(SMessage.from_raw(cmd_set_pubkey(pubkey)), self.timeout)
         self.pubkey = pubkey
 
     def scalar_mult(self, scalar: int, point: Point) -> Point:
+        """
+        Run scalar multiplication on the target and export the result.
+
+        Requires that domain parameters are set up.
+        """
         resp = self.send_cmd(SMessage.from_raw(cmd_scalar_mult(scalar, point)), self.timeout)
         result = resp["w"]
         plen = ((self.params.curve.prime.bit_length() + 7) // 8) * 2
-        params = {var: Mod(int(result.data[i * plen:(i + 1) * plen], 16), self.params.curve.prime)
+        params = {var: mod(int(result.data[i * plen:(i + 1) * plen], 16), self.params.curve.prime)
                   for
                   i, var in enumerate(self.coords.variables)}
         return Point(self.coords, **params)
 
     def ecdh(self, other_pubkey: Point) -> bytes:
+        """
+        Do ECDH with the target.
+
+        Requires that domain parameters are set up, as well as a private key.
+        """
         resp = self.send_cmd(SMessage.from_raw(cmd_ecdh(other_pubkey)), self.timeout)
         result = resp["r"]
         return unhexlify(result.data)
 
     def ecdsa_sign(self, data: bytes) -> bytes:
+        """
+        Sign a message on the target.
+
+        Requires that domain parameters are set up, as well as a private key.
+        """
         resp = self.send_cmd(SMessage.from_raw(cmd_ecdsa_sign(data)), self.timeout)
         signature = resp["s"]
         return unhexlify(signature.data)
 
     def ecdsa_verify(self, data: bytes, signature: bytes) -> bool:
+        """
+        Verify a signature on the target.
+
+        Requires that domain parameters are set up, as well as a public key.
+        """
         resp = self.send_cmd(SMessage.from_raw(cmd_ecdsa_verify(data, signature)), self.timeout)
         result = resp["v"]
         return unhexlify(result.data)[0] == 1
 
     def debug(self) -> Tuple[str, str]:
+        """
+        Run the debug command on the target.
+
+        Returns the curve model and coordinate model names.
+        """
         resp = self.send_cmd(SMessage.from_raw(cmd_debug()), self.timeout)["d"]
         model, coords = unhexlify(resp.data).decode().split(",")
         return model, coords
 
     def set_trigger(self, actions: Triggers) -> None:
+        """
+        Setup the trigger on the target.
+
+        .. note::
+
+            The triggers are not exclusive and you can set to trigger on multiple actions.
+            However, note that they toggle the trigger signal. For example, if you setup
+            triggers on scalar multiplication and addition (``Triggers.mult | Triggers.add``)
+            the trigger signal will go high once scalar multiplication starts, then go low
+            during each addition operation and finally go low for good after scalar multiplication
+            ends.
+        """
         self.send_cmd(SMessage.from_raw(cmd_set_trigger(actions)), self.timeout)
         self.trigger = actions
 
     def quit(self):
+        """Turn off the target."""
         self.write(b"x\n")
 
     def disconnect(self):
@@ -505,6 +607,7 @@ class HostTarget(ImplTarget, BinaryTarget):
               help="The firmware. Either a .hex file for a device platform or .elf for HOST platform.",
               required=True)
 @click.option("--timeout", type=int, default=15000)
+@click.option("--seed", type=str, help="Set the PRNG seed (hex string).")
 @click.argument("model", required=True,
                 type=click.Choice(["shortw", "montgom", "edwards", "twisted"]),
                 callback=get_model)
@@ -513,12 +616,13 @@ class HostTarget(ImplTarget, BinaryTarget):
 @click.version_option()
 @click.pass_context
 @public
-def main(ctx, platform, fw, timeout, model, coords):
+def main(ctx, platform, fw, timeout, seed, model, coords):
     """
     A tool for communicating with built and flashed ECC implementations.
     """
     ctx.ensure_object(dict)
     ctx.obj["fw"] = fw
+    ctx.obj["seed"] = seed
     if platform != Platform.HOST:
         ctx.obj["target"] = DeviceTarget(model, coords, platform, timeout=timeout)
     else:
@@ -549,6 +653,8 @@ def generate(ctx: click.Context, curve):
     if isinstance(target, Flashable):
         target.flash(ctx.obj["fw"])
     target.connect()
+    if seed := ctx.obj["seed"]:
+        target.init_prng(bytes.fromhex(seed))
     target.set_params(curve)
     start = time()
     click.echo(target.generate())
@@ -573,8 +679,8 @@ def get_pubkey(ctx: click.Context, param, value: Optional[str]) -> Point:
         y = int(ys)
     else:
         raise click.BadParameter("Couldn't parse pubkey: {}.".format(value))
-    x = Mod(x, curve.curve.prime)
-    y = Mod(y, curve.curve.prime)
+    x = mod(x, curve.curve.prime)
+    y = mod(y, curve.curve.prime)
     return Point(AffineCoordinateModel(curve.curve.model), x=x, y=y)
 
 
@@ -590,31 +696,62 @@ def ecdh(ctx: click.Context, curve, pubkey):
     if isinstance(target, Flashable):
         target.flash(ctx.obj["fw"])
     target.connect()
+    if seed := ctx.obj["seed"]:
+        target.init_prng(bytes.fromhex(seed))
     target.set_params(curve)
-    target.generate()
-    click.echo(hexlify(target.ecdh(pubkey)))
+    priv, pub = target.generate()
+    click.echo(f"Keypair: {priv}, {pub}")
+    click.echo(f"ECDH result: {hexlify(target.ecdh(pubkey)).decode()}")
     target.quit()
     target.disconnect()
 
 
 @main.command("ecdsa-sign")
 @click.argument("curve", required=True, callback=get_curve)
+@click.argument("data", required=True, type=str)
 @click.pass_context
 @public
-def ecdsa_sign(ctx: click.Context, curve):
+def ecdsa_sign(ctx: click.Context, curve, data):
+    """Sign data using ECDSA."""
     ctx.ensure_object(dict)
-    # TODO
-    click.echo("Not implemented.")
+    target: ImplTarget = ctx.obj["target"]
+    if isinstance(target, Flashable):
+        target.flash(ctx.obj["fw"])
+    target.connect()
+    if seed := ctx.obj["seed"]:
+        target.init_prng(bytes.fromhex(seed))
+    target.set_params(curve)
+    priv, pub = target.generate()
+    click.echo(f"Keypair: {priv}, {pub}")
+    click.echo(f"Signature: {hexlify(target.ecdsa_sign(data.encode())).decode()}")
+    target.quit()
+    target.disconnect()
 
 
 @main.command("ecdsa-verify")
 @click.argument("curve", required=True, callback=get_curve)
+@click.argument("pubkey", required=True, callback=get_pubkey)
+@click.argument("data", required=True, type=str)
+@click.argument("signature", required=True, type=str)
 @click.pass_context
 @public
-def ecdsa_verify(ctx: click.Context, curve):
+def ecdsa_verify(ctx: click.Context, curve, pubkey, data, signature):
+    """
+    Verify data using ECDSA.
+    """
     ctx.ensure_object(dict)
-    # TODO
-    click.echo("Not implemented.")
+    target: ImplTarget = ctx.obj["target"]
+    if isinstance(target, Flashable):
+        target.flash(ctx.obj["fw"])
+    target.connect()
+    if seed := ctx.obj["seed"]:
+        target.init_prng(bytes.fromhex(seed))
+    target.set_params(curve)
+    target.set_pubkey(pubkey)
+    res = target.ecdsa_verify(data.encode(), unhexlify(signature))
+    click.echo(f"Result: {res}")
+    target.quit()
+    target.disconnect()
 
 
 if __name__ == "__main__":

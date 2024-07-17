@@ -11,7 +11,7 @@ from pyecsca.codegen.builder import build_impl
 from pyecsca.codegen.client import EmulatorTarget
 
 from pyecsca.ec.curve import EllipticCurve
-from pyecsca.ec.mod import Mod
+from pyecsca.ec.mod import mod
 from pyecsca.ec.model import ShortWeierstrassModel
 from pyecsca.ec.params import DomainParameters
 from pyecsca.ec.point import InfinityPoint, Point
@@ -23,11 +23,11 @@ def curve32():
     model = ShortWeierstrassModel()
     coords = model.coordinates["projective"]
     p = 0xD7D1247F
-    a = Mod(0xA4A44016, p)
-    b = Mod(0x73F76716, p)
+    a = mod(0xA4A44016, p)
+    b = mod(0x73F76716, p)
     n = 0xD7D2A475
     h = 1
-    gx, gy, gz = Mod(0x54EED6D7, p), Mod(0x6F1E55AC, p), Mod(1, p)
+    gx, gy, gz = mod(0x54EED6D7, p), mod(0x6F1E55AC, p), mod(1, p)
     generator = Point(coords, X=gx, Y=gy, Z=gz)
     neutral = InfinityPoint(coords)
 
