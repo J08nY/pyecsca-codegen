@@ -414,12 +414,14 @@ class EmulatorTarget(Target):
 class ImplTarget(SimpleSerialTarget):
     """
     A target that is based on an implementation built by pyecsca-codegen.
-
-    This is an abstract class that uses the send_cmd method on the SimpleSerialTarget
+``
+    This is an abstract class that uses the send_cmd method on the
+    :py:class:`pyecsca.sca.target.simpleserial.SimpleSerialTarget`
     class to send commands to the target. That class in turn requires one to
     implement the read/write/connect/disconnect methods that communicate with the
-    target somehow. See `DeviceTarget` that uses `ChipWhispererTarget` for thar purpose,
-    or `HostTarget` that uses `BinaryTarget`.
+    target somehow. See :py:class:`DeviceTarget` that uses
+    :py:class:`pyecsca.sca.target.chipwhisperer.ChipWhispererTarget` for thar purpose,
+    or :py:class:`HostTarget` that uses :py:class:`pyecsca.sca.target.binary.BinaryTarget`.
     """
     model: CurveModel
     coords: CoordinateModel
@@ -550,8 +552,8 @@ class ImplTarget(SimpleSerialTarget):
 
         .. note::
 
-            The triggers are not exclusive and you can set to trigger on multiple actions.
-            However, note that they toggle the trigger signal. For example, if you setup
+            The triggers are not exclusive, and you can set to trigger on multiple actions.
+            However, note that they toggle the trigger signal. For example, if you set up
             triggers on scalar multiplication and addition (``Triggers.mult | Triggers.add``)
             the trigger signal will go high once scalar multiplication starts, then go low
             during each addition operation and finally go low for good after scalar multiplication
