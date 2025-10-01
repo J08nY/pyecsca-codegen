@@ -26,12 +26,16 @@ static void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, poin
     point_t *dbl = point_new();
     point_dbl(current, curve, dbl);
     points[0] = point_copy(current);
-    points[1] = point_copy(dbl);
+    {% if scalarmult.m > 2 %}
+        points[1] = point_copy(dbl);
+    {% endif %}
     point_set(dbl, current);
-    for (long i = 2; i < {{ scalarmult.m - 1 }}; i++) {
-        point_add(current, point, curve, current);
-        points[i] = point_copy(current);
-    }
+    {% if scalarmult.m > 3 %}
+        for (long i = 2; i < {{ scalarmult.m - 1 }}; i++) {
+            point_add(current, point, curve, current);
+            points[i] = point_copy(current);
+        }
+    {% endif %}
     point_free(current);
     point_free(dbl);
 
