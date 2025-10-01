@@ -81,7 +81,7 @@ def get_multiplier(ctx: click.Context, param, value: Optional[str]) -> Optional[
     if value is None:
         return None
     res = re.match(
-        "(?P<name>[a-zA-Z\-]+)\((?P<args>([a-zA-Z_]+ *= *[a-zA-Z0-9.]+, ?)*?([a-zA-Z_]+ *= *[a-zA-Z0-9.]+)*)\)",
+        r"(?P<name>[a-zA-Z\-]+)\((?P<args>([a-zA-Z_]+ *= *[a-zA-Z0-9.]+, ?)*?([a-zA-Z_]+ *= *[a-zA-Z0-9.]+)*)\)",
         value)
     if not res:
         raise click.BadParameter("Couldn't parse multiplier spec: {}.".format(value))
