@@ -11,7 +11,7 @@ void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, point_t *ou
 	{%- endif %}
 
 	for (int i = nbits; i >= 0; i--) {
-		if (bn_get_bit(scalar, i) == 1) {
+		if (bn_get_bit(scalar, i) == 0) {
 			point_add(p0, p1, curve, p1);
 			point_dbl(p0, curve, p0);
 		} else {

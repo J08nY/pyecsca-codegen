@@ -8,21 +8,7 @@ from click.testing import CliRunner
 from pyecsca.ec.formula import NegationFormula
 from pyecsca.ec.key_agreement import ECDH_SHA1
 from pyecsca.ec.mod import mod
-from pyecsca.ec.mult import (
-    LTRMultiplier,
-    RTLMultiplier,
-    CoronMultiplier,
-    BinaryNAFMultiplier,
-    WindowNAFMultiplier,
-    SlidingWindowMultiplier,
-    AccumulationOrder,
-    ProcessingDirection,
-    ScalarMultiplier,
-    FixedWindowLTRMultiplier,
-    FullPrecompMultiplier,
-    BGMWMultiplier,
-    CombMultiplier,
-)
+from pyecsca.ec.mult import ScalarMultiplier, WindowBoothMultiplier
 from pyecsca.ec.signature import ECDSA_SHA1, SignatureResult
 
 from pyecsca.codegen.builder import build_impl
@@ -43,8 +29,12 @@ def additional(request):
 
 
 @pytest.fixture(scope="module")
-def target(simple_multiplier, additional, secp128r1) -> Generator[HostTarget, Any, None]:
+def target(
+    simple_multiplier, additional, secp128r1
+) -> Generator[HostTarget, Any, None]:
     mult_class, mult_kwargs = simple_multiplier
+    if mult_class == WindowBoothMultiplier:
+        pytest.skip("WindowBoothMultiplier not implemented yet")
     mult_name = mult_class.__name__
     formulas = ["add-1998-cmo", "dbl-1998-cmo"]
     if NegationFormula in mult_class.requires:
