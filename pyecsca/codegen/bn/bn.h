@@ -78,6 +78,8 @@ typedef struct {
 
 void math_init(void);
 
+extern const int bn_digit_bits;
+
 bn_err  bn_init(bn_t *bn);
 #define bn_init_multi mp_init_multi
 bn_err  bn_copy(const bn_t *from, bn_t *to);

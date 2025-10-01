@@ -27,6 +27,8 @@ void math_init(void) {
 	#endif //TODO: COMBA
 }
 
+const int bn_digit_bits __attribute__((used)) = MP_DIGIT_BIT;
+
 bn_err bn_init(bn_t *bn) {
 	return mp_init(bn);
 }
