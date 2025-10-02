@@ -548,6 +548,14 @@ void bn_naf_reverse(wnaf_t *naf) {
     }
 }
 
+void bn_naf_clear(wnaf_t *naf) {
+    if (naf == NULL) {
+        return;
+    }
+    free(naf->data);
+    free(naf);
+}
+
 wsliding_t *bn_wsliding_ltr(const bn_t *bn, int w) {
     if (w > 8 || w < 2) {
 		return NULL;
@@ -679,6 +687,14 @@ exit_k:
 	return result;
 }
 
+void bn_wsliding_clear(wsliding_t *wsliding) {
+    if (wsliding == NULL) {
+        return;
+    }
+    free(wsliding->data);
+    free(wsliding);
+}
+
 small_base_t *bn_convert_base_small(const bn_t *bn, int m) {
     small_base_t *result = NULL;
 
@@ -715,6 +731,14 @@ exit_len:
     bn_clear(&k);
 exit_k:
     return result;
+}
+
+void bn_small_base_clear(small_base_t *sb) {
+    if (sb == NULL) {
+        return;
+    }
+    free(sb->data);
+    free(sb);
 }
 
 large_base_t *bn_convert_base_large(const bn_t *bn, const bn_t *m) {
@@ -755,4 +779,16 @@ exit_len:
     bn_clear(&k);
 exit_k:
     return result;
+}
+
+void bn_large_base_clear(large_base_t *lb) {
+    if (lb == NULL) {
+        return;
+    }
+    for (int i = 0; i < lb->length; i++) {
+        bn_clear(&lb->data[i]);
+    }
+    free(lb->data);
+    bn_clear(&lb->m);
+    free(lb);
 }

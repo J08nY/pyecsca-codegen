@@ -40,8 +40,7 @@ static void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, poin
 		    {%- endif %}
 		}
 	}
-	free(naf->data);
-	free(naf);
+	bn_naf_clear(naf);
 
     {%- if "scl" in scalarmult.formulas %}
     	point_scl(q, curve, q);

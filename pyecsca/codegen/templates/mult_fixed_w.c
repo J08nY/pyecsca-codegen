@@ -53,8 +53,7 @@ static void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, poin
 			point_accumulate(q, points[val-1], curve, q);
         }
 	}
-	free(bs->data);
-	free(bs);
+	bn_small_base_clear(bs);
 
     {%- if "scl" in scalarmult.formulas %}
     	point_scl(q, curve, q);

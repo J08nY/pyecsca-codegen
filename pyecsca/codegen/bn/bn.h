@@ -143,11 +143,15 @@ void    bn_naf_pad_right(wnaf_t *naf, int8_t value, size_t amount);
 void    bn_naf_strip_left(wnaf_t *naf, int8_t value);
 void    bn_naf_strip_right(wnaf_t *naf, int8_t value);
 void    bn_naf_reverse(wnaf_t *naf);
+void    bn_naf_clear(wnaf_t *naf);
 
 wsliding_t *bn_wsliding_ltr(const bn_t *bn, int w);
 wsliding_t *bn_wsliding_rtl(const bn_t *bn, int w);
+void        bn_wsliding_clear(wsliding_t *wsliding);
 
 small_base_t *bn_convert_base_small(const bn_t *bn, int m);
+void          bn_small_base_clear(small_base_t *sb);
 large_base_t *bn_convert_base_large(const bn_t *bn, const bn_t *m);
+void          bn_large_base_clear(large_base_t *lb);
 
 #endif //BN_H_

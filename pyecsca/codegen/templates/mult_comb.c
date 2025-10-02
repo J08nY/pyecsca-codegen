@@ -65,12 +65,7 @@ static void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, poin
             {% endif %}
         }
 	}
-	for (int i = 0; i < bs->length; i++) {
-	    bn_clear(&bs->data[i]);
-	}
-	free(bs->data);
-	bn_clear(&bs->m);
-	free(bs);
+	bn_large_base_clear(bs);
 	bn_clear(&base);
 
 

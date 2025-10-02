@@ -31,6 +31,10 @@
 
     {% include "mult_wnaf.c" %}
 
+{%- elif isinstance(scalarmult, WindowBoothMultiplier) -%}
+
+    {% include "mult_booth.c" %}
+
 {%- elif isinstance(scalarmult, SlidingWindowMultiplier) -%}
 
     {% include "mult_sliding_w.c" %}

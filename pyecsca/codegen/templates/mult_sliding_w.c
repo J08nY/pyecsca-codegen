@@ -34,8 +34,7 @@ static void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, poin
     {%- endif %}
     point_set(q, out);
 
-    free(ws->data);
-	free(ws);
+    bn_wsliding_clear(ws);
     for (long i = 0; i < {{ 2 ** (scalarmult.width - 1) }}; i++) {
         point_free(points[i]);
     }
