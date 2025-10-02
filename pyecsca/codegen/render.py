@@ -43,6 +43,7 @@ from pyecsca.ec.mult import (
 from pyecsca.ec.op import OpType, CodeOp
 
 from pyecsca.codegen.common import Platform, DeviceConfiguration
+from pyecsca.misc.utils import pexec
 
 env = Environment(loader=PackageLoader("pyecsca.codegen"))
 
@@ -300,8 +301,20 @@ def render_formula_impl(formula: Formula, short_circuit: bool = False) -> str:
         var = output[0]
         num = int(output[1:]) - formula.output_index
         renames[output] = "{}->{}".format(outputs[num], var)
+    ops = []
+    for assumption_str in formula.assumptions_str:
+        lhs, rhs = assumption_str.split(" == ")
+        if lhs in formula.parameters:
+            try:
+                code = CodeOp(pexec(assumption_str.replace("==", "=").replace("^", "**")))
+                ops.append(code)
+            except Exception as e:
+                raise ValueError("Could not parse assumption: {}".format(assumption_str)) from e
+        else:
+            raise ValueError("WIP: assumption not supported: {}".format(assumption_str))
+    ops.extend(formula.code)
     namespace = transform_ops(
-        formula.code,
+        ops,
         formula.coordinate_model.curve_model.parameter_names,
         formula.outputs,
         renames,

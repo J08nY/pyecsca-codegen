@@ -13,7 +13,6 @@ from pyecsca.codegen.common import Platform, DeviceConfiguration
 from pyecsca.codegen.render import render_and_build
 
 
-@pytest.mark.xfail(reason="Issue not resolved yet.")
 def test_regress_5(secp128r1, tmp_path):
     platform = Platform.HOST
     hash_type = HashType.SHA1
