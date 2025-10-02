@@ -806,7 +806,7 @@ int32_t bn_booth_word(int32_t digit, int32_t w) {
     }
 }
 
-booth_t *bn_booth(const bn_t *bn, int w, size_t bits) {
+booth_t *bn_booth(const bn_t *bn, int32_t w, size_t bits) {
     if (w >= 30) {
         return NULL;
     }
