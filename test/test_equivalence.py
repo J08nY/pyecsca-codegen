@@ -136,27 +136,28 @@ def test_equivalence(target, secp128r1, capfd):
     mult = target.mult
     target.connect()
     target.set_params(secp128r1)
-    priv, pub = target.generate()
-    with local(DefaultContext()) as ctx:
-        mult.init(secp128r1, secp128r1.generator)
-        expected = mult.multiply(priv).to_affine()
-    captured = capfd.readouterr()
-    with capfd.disabled():
-        assert secp128r1.curve.is_on_curve(pub)
-        #assert pub == expected
-        from_codegen = parse_trace(captured.err)
-        from_sim = parse_ctx(ctx.actions[0]) + parse_ctx(ctx.actions[1])
-        codegen_set = set(make_hashable(from_codegen))
-        sim_set = set(make_hashable(from_sim))
-        if codegen_set != sim_set:
-            print(len(from_codegen), len(from_sim))
-            print("In codegen but not in sim:")
-            for entry in codegen_set - sim_set:
-                print(entry)
-            print("In sim but not in codegen:")
-            for entry in sim_set - codegen_set:
-                print(entry)
-        assert from_codegen == from_sim
+    for _ in range(3):
+        priv, pub = target.generate()
+        with local(DefaultContext()) as ctx:
+            mult.init(secp128r1, secp128r1.generator)
+            expected = mult.multiply(priv).to_affine()
+        captured = capfd.readouterr()
+        with capfd.disabled():
+            assert secp128r1.curve.is_on_curve(pub)
+            assert pub == expected
+            from_codegen = parse_trace(captured.err)
+            from_sim = parse_ctx(ctx.actions[0]) + parse_ctx(ctx.actions[1])
+            codegen_set = set(make_hashable(from_codegen))
+            sim_set = set(make_hashable(from_sim))
+            if codegen_set != sim_set:
+                print(len(from_codegen), len(from_sim))
+                print("In codegen but not in sim:")
+                for entry in codegen_set - sim_set:
+                    print(entry)
+                print("In sim but not in codegen:")
+                for entry in sim_set - codegen_set:
+                    print(entry)
+            assert from_codegen == from_sim
 
     target.quit()
     target.disconnect()

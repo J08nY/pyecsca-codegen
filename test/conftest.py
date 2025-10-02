@@ -38,7 +38,6 @@ window_mults = [
     (WindowBoothMultiplier, dict(width=5)),
     (WindowBoothMultiplier, dict(width=6))
 ]
-
 naf_mults = [
     (WindowNAFMultiplier, dict(width=2)),
     (WindowNAFMultiplier, dict(width=3)),
@@ -48,7 +47,11 @@ naf_mults = [
     (BinaryNAFMultiplier, dict(always=False, direction=ProcessingDirection.LTR)),
     (BinaryNAFMultiplier, dict(always=False, direction=ProcessingDirection.RTL)),
     (BinaryNAFMultiplier, dict(always=True, direction=ProcessingDirection.LTR)),
-    (BinaryNAFMultiplier, dict(always=True, direction=ProcessingDirection.RTL))
+    (BinaryNAFMultiplier, dict(always=True, direction=ProcessingDirection.RTL)),
+    (BinaryNAFMultiplier, dict(complete=False, always=False, direction=ProcessingDirection.LTR)),
+    (BinaryNAFMultiplier, dict(complete=False, always=False, direction=ProcessingDirection.RTL)),
+    (BinaryNAFMultiplier, dict(complete=False, always=True, direction=ProcessingDirection.LTR)),
+    (BinaryNAFMultiplier, dict(complete=False, always=True, direction=ProcessingDirection.RTL))
 ]
 comb_mults = [
     (CombMultiplier, dict(width=2, always=True)),
