@@ -1,7 +1,9 @@
-import sys
+import os
 import json
 
 import gdb
+
+trace_file = open(os.environ["TRACE_FILE"], "w")
 
 
 def extract_bn(bn):
@@ -32,7 +34,7 @@ class TraceFunction(gdb.Breakpoint):
             set_bp.enabled = True
             frame = gdb.newest_frame()
             block = frame.block()
-            print(frame.name(), file=sys.stderr)
+            print(frame.name(), flush=True, file=trace_file)
             out = []
             for sym in block:
                 if sym.is_argument:
@@ -47,11 +49,11 @@ class TraceFunction(gdb.Breakpoint):
                             out.append(deref)
                         else:
                             pt = extract_point(deref)
-                            print(f"{name}: {json.dumps(pt)}", file=sys.stderr)
+                            print(f"{name}: {json.dumps(pt)}", flush=True, file=trace_file)
             bp = TraceExit(frame)
             bp.silent = True
             bp.target = out
-        except RuntimeError as e:
+        except RuntimeError:
             pass
         return False  # Continue execution
 
@@ -60,7 +62,7 @@ class TraceExit(gdb.FinishBreakpoint):
     def stop(self):
         set_bp.enabled = False
         for i, point in enumerate(self.target):
-            print(f"out_{i}: {json.dumps(extract_point(point))}", file=sys.stderr)
+            print(f"out_{i}: {json.dumps(extract_point(point))}", flush=True, file=trace_file)
         return False  # Continue execution
 
 
@@ -84,4 +86,4 @@ set_bp = register_bp("point_set")
 set_bp.enabled = False
 
 gdb.execute("run")
-# print("\x04", file=sys.stderr)
+trace_file.close()

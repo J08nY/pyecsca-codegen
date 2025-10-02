@@ -1,5 +1,6 @@
 import subprocess
 import json
+from tempfile import NamedTemporaryFile
 from typing import Generator, Any
 from click.testing import CliRunner
 
@@ -21,16 +22,36 @@ from pyecsca.ec.mult import WindowBoothMultiplier
 class GDBTarget(ImplTarget, BinaryTarget):
     def __init__(self, model: CurveModel, coords: CoordinateModel, **kwargs):
         super().__init__(model, coords, **kwargs)
+        self.trace_file = None
 
     def connect(self):
+        self.trace_file = NamedTemporaryFile("r+")
         with resources.path("test", "gdb_script.py") as gdb_script:
             self.process = subprocess.Popen(
-                ["gdb", "-batch", "-x", gdb_script, "--args", *self.binary],
+                [
+                    "gdb",
+                    "-q",
+                    "-batch-silent",
+                    "-x",
+                    gdb_script,
+                    "--args",
+                    *self.binary,
+                ],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                env={
+                    "TRACE_FILE": self.trace_file.name,
+                },
                 text=True,
                 bufsize=1,
             )
+
+    def disconnect(self):
+        super().disconnect()
+        if self.trace_file is not None:
+            self.trace_file.close()
+            self.trace_file = None
 
 
 @pytest.fixture(scope="module")
@@ -132,32 +153,35 @@ def make_hashable(trace):
     return tuple(result)
 
 
-def test_equivalence(target, secp128r1, capfd):
+def test_equivalence(target, secp128r1):
     mult = target.mult
-    target.connect()
-    target.set_params(secp128r1)
-    for _ in range(3):
+    for i in range(10):
+        target.connect()
+        target.init_prng(i.to_bytes(4, "big"))
+        target.set_params(secp128r1)
+
         priv, pub = target.generate()
+
         with local(DefaultContext()) as ctx:
             mult.init(secp128r1, secp128r1.generator)
             expected = mult.multiply(priv).to_affine()
-        captured = capfd.readouterr()
-        with capfd.disabled():
-            assert secp128r1.curve.is_on_curve(pub)
-            assert pub == expected
-            from_codegen = parse_trace(captured.err)
-            from_sim = parse_ctx(ctx.actions[0]) + parse_ctx(ctx.actions[1])
-            codegen_set = set(make_hashable(from_codegen))
-            sim_set = set(make_hashable(from_sim))
-            if codegen_set != sim_set:
-                print(len(from_codegen), len(from_sim))
-                print("In codegen but not in sim:")
-                for entry in codegen_set - sim_set:
-                    print(entry)
-                print("In sim but not in codegen:")
-                for entry in sim_set - codegen_set:
-                    print(entry)
-            assert from_codegen == from_sim
 
-    target.quit()
-    target.disconnect()
+        assert secp128r1.curve.is_on_curve(pub)
+        assert pub == expected
+        err = target.trace_file.read()
+        from_codegen = parse_trace(err)
+        from_sim = parse_ctx(ctx.actions[0]) + parse_ctx(ctx.actions[1])
+        codegen_set = set(make_hashable(from_codegen))
+        sim_set = set(make_hashable(from_sim))
+        if codegen_set != sim_set:
+            print(len(from_codegen), len(from_sim))
+            print("In codegen but not in sim:")
+            for entry in codegen_set - sim_set:
+                print(entry)
+            print("In sim but not in codegen:")
+            for entry in sim_set - codegen_set:
+                print(entry)
+        assert from_codegen == from_sim
+
+        target.quit()
+        target.disconnect()
