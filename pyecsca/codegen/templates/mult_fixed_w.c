@@ -20,18 +20,22 @@ void scalar_mult_by_m_base(point_t *point, curve_t *curve) {
 
 static void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, point_t *out) {
 	point_t *q = point_copy(curve->neutral);
-    point_t *points[{{ scalarmult.m }}];
+    point_t *points[{{ scalarmult.m - 1 }}];
 
     point_t *current = point_copy(point);
     point_t *dbl = point_new();
     point_dbl(current, curve, dbl);
     points[0] = point_copy(current);
-    points[1] = point_copy(dbl);
+    {% if scalarmult.m > 2 %}
+        points[1] = point_copy(dbl);
+    {% endif %}
     point_set(dbl, current);
-    for (long i = 2; i < {{ scalarmult.m }}; i++) {
-        point_add(current, point, curve, current);
-        points[i] = point_copy(current);
-    }
+    {% if scalarmult.m > 3 %}
+        for (long i = 2; i < {{ scalarmult.m - 1 }}; i++) {
+            point_add(current, point, curve, current);
+            points[i] = point_copy(current);
+        }
+    {% endif %}
     point_free(current);
     point_free(dbl);
 
@@ -49,14 +53,13 @@ static void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, poin
 			point_accumulate(q, points[val-1], curve, q);
         }
 	}
-	free(bs->data);
-	free(bs);
+	bn_small_base_clear(bs);
 
     {%- if "scl" in scalarmult.formulas %}
     	point_scl(q, curve, q);
     {%- endif %}
     point_set(q, out);
-    for (long i = 0; i < {{ scalarmult.m }}; i++) {
+    for (long i = 0; i < {{ scalarmult.m - 1 }}; i++) {
         point_free(points[i]);
     }
 	point_free(q);

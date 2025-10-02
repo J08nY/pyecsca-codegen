@@ -1,29 +1,18 @@
 from copy import copy
 from os.path import join
+from typing import Any, Generator
+
 import pytest
 from click.testing import CliRunner
 
+from pyecsca.ec.formula import NegationFormula
 from pyecsca.ec.key_agreement import ECDH_SHA1
 from pyecsca.ec.mod import mod
-from pyecsca.ec.mult import (
-    LTRMultiplier,
-    RTLMultiplier,
-    CoronMultiplier,
-    BinaryNAFMultiplier,
-    WindowNAFMultiplier,
-    SlidingWindowMultiplier,
-    AccumulationOrder,
-    ProcessingDirection,
-    ScalarMultiplier,
-    FixedWindowLTRMultiplier,
-    FullPrecompMultiplier,
-    BGMWMultiplier,
-    CombMultiplier,
-)
+from pyecsca.ec.mult import ScalarMultiplier, WindowBoothMultiplier
 from pyecsca.ec.signature import ECDSA_SHA1, SignatureResult
 
 from pyecsca.codegen.builder import build_impl
-from pyecsca.codegen.client import HostTarget, ImplTarget
+from pyecsca.codegen.client import HostTarget
 
 
 @pytest.fixture(
@@ -39,195 +28,15 @@ def additional(request):
     return request.param
 
 
-@pytest.fixture(
-    scope="module",
-    params=[
-        pytest.param(
-            (
-                LTRMultiplier,
-                "ltr",
-                ["add-1998-cmo", "dbl-1998-cmo"],
-                {"complete": False},
-            ),
-            id="LTR1",
-        ),
-        pytest.param(
-            (
-                LTRMultiplier,
-                "ltr",
-                ["add-1998-cmo", "dbl-1998-cmo"],
-                {"complete": True},
-            ),
-            id="LTR2",
-        ),
-        pytest.param(
-            (
-                LTRMultiplier,
-                "ltr",
-                ["add-1998-cmo", "dbl-1998-cmo"],
-                {"complete": False, "always": True},
-            ),
-            id="LTR3",
-        ),
-        pytest.param(
-            (
-                LTRMultiplier,
-                "ltr",
-                ["add-1998-cmo", "dbl-1998-cmo"],
-                {"complete": True, "always": True},
-            ),
-            id="LTR4",
-        ),
-        pytest.param(
-            (
-                LTRMultiplier,
-                "ltr",
-                ["add-1998-cmo", "dbl-1998-cmo"],
-                {"complete": False, "accumulation_order": AccumulationOrder.PeqRP},
-            ),
-            id="LTR5",
-        ),
-        pytest.param(
-            (RTLMultiplier, "rtl", ["add-1998-cmo", "dbl-1998-cmo"], {"always": False}),
-            id="RTL1",
-        ),
-        pytest.param(
-            (RTLMultiplier, "rtl", ["add-1998-cmo", "dbl-1998-cmo"], {"always": True}),
-            id="RTL2",
-        ),
-        pytest.param(
-            (CoronMultiplier, "coron", ["add-1998-cmo", "dbl-1998-cmo"], {}), id="Coron"
-        ),
-        pytest.param(
-            (
-                BinaryNAFMultiplier,
-                "bnaf",
-                ["add-1998-cmo", "dbl-1998-cmo", "neg"],
-                {"direction": ProcessingDirection.LTR},
-            ),
-            id="BNAF1",
-        ),
-        pytest.param(
-            (
-                BinaryNAFMultiplier,
-                "bnaf",
-                ["add-1998-cmo", "dbl-1998-cmo", "neg"],
-                {"direction": ProcessingDirection.RTL},
-            ),
-            id="BNAF2",
-        ),
-        pytest.param(
-            (
-                WindowNAFMultiplier,
-                "wnaf",
-                ["add-1998-cmo", "dbl-1998-cmo", "neg"],
-                {"width": 3},
-            ),
-            id="WNAF1",
-        ),
-        pytest.param(
-            (
-                WindowNAFMultiplier,
-                "wnaf",
-                ["add-1998-cmo", "dbl-1998-cmo", "neg"],
-                {"width": 3, "precompute_negation": True},
-            ),
-            id="WNAF2",
-        ),
-        pytest.param(
-            (
-                SlidingWindowMultiplier,
-                "sliding",
-                ["add-1998-cmo", "dbl-1998-cmo"],
-                {"width": 3},
-            ),
-            id="SLI1",
-        ),
-        pytest.param(
-            (
-                SlidingWindowMultiplier,
-                "sliding",
-                ["add-1998-cmo", "dbl-1998-cmo"],
-                {"width": 3, "recoding_direction": ProcessingDirection.RTL},
-            ),
-            id="SLI2",
-        ),
-        pytest.param(
-            (
-                FixedWindowLTRMultiplier,
-                "fixed",
-                ["add-1998-cmo", "dbl-1998-cmo"],
-                {"m": 4},
-            ),
-            id="FIX1",
-        ),
-        pytest.param(
-            (
-                FixedWindowLTRMultiplier,
-                "fixed",
-                ["add-1998-cmo", "dbl-1998-cmo"],
-                {"m": 5},
-            ),
-            id="FIX2",
-        ),
-        pytest.param(
-            (
-                FullPrecompMultiplier,
-                "precomp",
-                ["add-1998-cmo", "dbl-1998-cmo"],
-                {"direction": ProcessingDirection.LTR},
-            ),
-            id="PRE1",
-        ),
-        pytest.param(
-            (
-                FullPrecompMultiplier,
-                "precomp",
-                ["add-1998-cmo", "dbl-1998-cmo"],
-                {"direction": ProcessingDirection.RTL},
-            ),
-            id="PRE2",
-        ),
-        pytest.param(
-            (
-                    BGMWMultiplier,
-                    "bgmw",
-                    ["add-1998-cmo", "dbl-1998-cmo"],
-                    {"width": 3, "direction": ProcessingDirection.LTR},
-            ),
-            id="BGMW1",
-        ),
-        pytest.param(
-            (
-                    BGMWMultiplier,
-                    "bgmw",
-                    ["add-1998-cmo", "dbl-1998-cmo"],
-                    {"width": 5, "direction": ProcessingDirection.RTL},
-            ),
-            id="BGMW2",
-        ),
-        pytest.param(
-            (
-                    CombMultiplier,
-                    "comb",
-                    ["add-1998-cmo", "dbl-1998-cmo"],
-                    {"width": 3},
-            ),
-            id="Comb1",
-        ),
-        pytest.param(
-            (
-                    CombMultiplier,
-                    "comb",
-                    ["add-1998-cmo", "dbl-1998-cmo"],
-                    {"width": 5},
-            ),
-            id="Comb2",
-        ),
-    ],
-)
-def target(request, additional, secp128r1) -> ImplTarget:
-    mult_class, mult_name, formulas, mult_kwargs = request.param
+@pytest.fixture(scope="module")
+def target(
+    simple_multiplier, additional, secp128r1
+) -> Generator[HostTarget, Any, None]:
+    mult_class, mult_kwargs = simple_multiplier
+    mult_name = mult_class.__name__
+    formulas = ["add-1998-cmo", "dbl-1998-cmo"]
+    if NegationFormula in mult_class.requires:
+        formulas.append("neg")
     runner = CliRunner()
     with runner.isolated_filesystem() as tmpdir:
         res = runner.invoke(
@@ -235,7 +44,6 @@ def target(request, additional, secp128r1) -> ImplTarget:
             [
                 "--platform",
                 "HOST",
-                *additional,
                 "--ecdsa",
                 "--ecdh",
                 secp128r1.curve.model.shortname,

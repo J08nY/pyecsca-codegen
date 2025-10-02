@@ -4,7 +4,6 @@
 htmlcov/
 /build/
 __pycache__
-/test/test_bn
 
 pyecsca-codegen-*.elf
 pyecsca-codegen-*.hex

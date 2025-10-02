@@ -76,7 +76,15 @@ typedef struct {
     bn_t m;
 } large_base_t;
 
+typedef struct {
+	int32_t *data;
+	size_t length;
+	int w;
+} booth_t;
+
 void math_init(void);
+
+extern const int bn_digit_bits;
 
 bn_err  bn_init(bn_t *bn);
 #define bn_init_multi mp_init_multi
@@ -86,6 +94,7 @@ void    bn_clear(bn_t *bn);
 
 bn_err bn_from_bin(const uint8_t *data, size_t size, bn_t *out);
 bn_err bn_from_hex(const char *data, bn_t *out);
+bn_err bn_from_dec(const char *data, bn_t *out);
 bn_err bn_from_int(unsigned int value, bn_t *out);
 
 bn_err bn_to_binpad(const bn_t *one, uint8_t *data, size_t size);
@@ -135,11 +144,24 @@ int     bn_bit_length(const bn_t *bn);
 
 wnaf_t *bn_wnaf(const bn_t *bn, int w);
 wnaf_t *bn_bnaf(const bn_t *bn);
+void    bn_naf_pad_left(wnaf_t *naf, int8_t value, size_t amount);
+void    bn_naf_pad_right(wnaf_t *naf, int8_t value, size_t amount);
+void    bn_naf_strip_left(wnaf_t *naf, int8_t value);
+void    bn_naf_strip_right(wnaf_t *naf, int8_t value);
+void    bn_naf_reverse(wnaf_t *naf);
+void    bn_naf_clear(wnaf_t *naf);
 
 wsliding_t *bn_wsliding_ltr(const bn_t *bn, int w);
 wsliding_t *bn_wsliding_rtl(const bn_t *bn, int w);
+void        bn_wsliding_clear(wsliding_t *wsliding);
 
 small_base_t *bn_convert_base_small(const bn_t *bn, int m);
+void          bn_small_base_clear(small_base_t *sb);
 large_base_t *bn_convert_base_large(const bn_t *bn, const bn_t *m);
+void          bn_large_base_clear(large_base_t *lb);
+
+int32_t  bn_booth_word(int32_t digit, int32_t w);
+booth_t *bn_booth(const bn_t *bn, int32_t w, size_t bits);
+void     bn_booth_clear(booth_t *booth);
 
 #endif //BN_H_

@@ -39,6 +39,10 @@ static void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, poin
 	bn_from_int(1, &base);
     bn_lsh(&base, d, &base);
 
+    {% if scalarmult.always %}
+        point_t *dummy = point_new();
+    {% endif %}
+
 	large_base_t *bs = bn_convert_base_large(scalar, &base);
 	for (int i = d - 1; i >= 0; i--) {
         point_dbl(q, curve, q);
@@ -50,14 +54,18 @@ static void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, poin
         }
         if (word) {
             point_accumulate(q, points[word], curve, q);
+        } else {
+            {% if scalarmult.always %}
+                int j = i % {{ 2**scalarmult.width }};
+                if (j == 0) {
+                    point_accumulate(q, point, curve, dummy);
+                } else {
+                    point_accumulate(q, points[j], curve, dummy);
+                }
+            {% endif %}
         }
 	}
-	for (int i = 0; i < bs->length; i++) {
-	    bn_clear(&bs->data[i]);
-	}
-	free(bs->data);
-	bn_clear(&bs->m);
-	free(bs);
+	bn_large_base_clear(bs);
 	bn_clear(&base);
 
 

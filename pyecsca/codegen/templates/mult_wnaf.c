@@ -26,7 +26,7 @@ static void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, poin
 
 	wnaf_t *naf = bn_wnaf(scalar, {{ scalarmult.width }});
 
-	for (long i = naf->length - 1; i >= 0; i--) {
+	for (long i = 0; i < naf->length; i++) {
 		point_dbl(q, curve, q);
 		int8_t val = naf->data[i];
 		if (val > 0) {
@@ -40,8 +40,7 @@ static void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, poin
 		    {%- endif %}
 		}
 	}
-	free(naf->data);
-	free(naf);
+	bn_naf_clear(naf);
 
     {%- if "scl" in scalarmult.formulas %}
     	point_scl(q, curve, q);

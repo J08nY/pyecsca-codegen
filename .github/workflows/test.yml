@@ -4,11 +4,11 @@ on: [push, pull_request]
 
 env:
   LLVM_CONFIG: /usr/bin/llvm-config-14
-  OTHER_PACKAGES: swig libpcsclite-dev llvm-14 libllvm14 llvm-14-dev valgrind gcc gcc-arm-none-eabi binutils-arm-none-eabi libnewlib-arm-none-eabi
+  OTHER_PACKAGES: swig libpcsclite-dev llvm-14 libllvm14 llvm-14-dev valgrind gdb gcc gcc-arm-none-eabi binutils-arm-none-eabi libnewlib-arm-none-eabi
 
 jobs:
   test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
@@ -50,7 +50,7 @@ jobs:
           make test
       - name: Test (C)
         run: |
-          cd test && make test_bn && ./test_bn && cd ..
+          cd test && make test && cd ..
       - name: Code coverage
         uses: codecov/codecov-action@v3
         if: ${{ matrix.python-version == 3.9 }}
