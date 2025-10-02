@@ -17,7 +17,7 @@ static void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, poin
         points_neg[0] = point_new();
         point_neg(points[0], curve, points_neg[0]);
     {% endif %}
-    {% if scalarmult.width > 0 %}
+    {% if scalarmult.width > 1 %}
         points[1] = point_copy(dbl);
         {% if scalarmult.precompute_negation %}
             points_neg[1] = point_new();
@@ -26,7 +26,7 @@ static void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, poin
     {% endif %}
 
     point_set(dbl, current);
-    {% if scalarmult.width > 1 %}
+    {% if scalarmult.width > 2 %}
         for (long i = 2; i < {{ 2 ** (scalarmult.width - 1) }}; i++) {
             point_add(current, point, curve, current);
             points[i] = point_copy(current);
