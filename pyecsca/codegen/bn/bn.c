@@ -792,3 +792,59 @@ void bn_large_base_clear(large_base_t *lb) {
     bn_clear(&lb->m);
     free(lb);
 }
+
+int32_t bn_booth_word(int32_t digit, int32_t w) {
+    int32_t s = ~((digit >> w) - 1);  //s = ~((digit >> w) - 1)
+    int32_t d = (1 << (w + 1)) - digit - 1;  //d = (1 << (w + 1)) - digit - 1
+    d = (d & s) | (digit & ~s); // d = (d & s) | (digit & ~s)
+    d = (d >> 1) + (d & 1); //d = (d >> 1) + (d & 1)
+
+    if (s) { //return -d if s else d
+        return -d;
+    } else {
+        return d;
+    }
+}
+
+booth_t *bn_booth(const bn_t *bn, int w, size_t bits) {
+    if (w >= 30) {
+        return NULL;
+    }
+    int32_t mask = (1 << (w + 1)) - 1;
+    bn_t d, m;
+    bn_init(&d);
+    bn_init(&m);
+    bn_from_int(mask, &m);
+
+    size_t len = (bits / w) + 1;
+    booth_t *result = malloc(sizeof(booth_t));
+    result->length = len;
+    result->w = w;
+    result->data = calloc(len, sizeof(int32_t));
+
+    long l = 0;
+    for (long i = bits + (w - (bits % w) - 1); i > 0; i -= w) {
+        int32_t digit;
+        bn_copy(bn, &d);
+        if (i >= w) {
+            bn_rsh(&d, i - w, &d);
+        } else {
+            bn_lsh(&d, w - i, &d);
+        }
+        bn_and(&d, &m, &d);
+        digit = bn_to_int(&d);
+        int32_t val = bn_booth_word(digit, w);
+        result->data[l++] = val;
+    }
+    bn_clear(&d);
+    bn_clear(&m);
+    return result;
+}
+
+void bn_booth_clear(booth_t *booth) {
+    if (booth == NULL) {
+        return;
+    }
+    free(booth->data);
+    free(booth);
+}

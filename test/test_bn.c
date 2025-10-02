@@ -336,6 +336,71 @@ int test_bn_wnaf_manipulation() {
     return 0;
 }
 
+int test_booth() {
+    printf("test_booth: ");
+    for (int i = 0; i < (1 << 6); i++) {
+        int32_t bw = bn_booth_word(i, 5);
+        if (i <= 31) {
+            if (bw != (i + 1) / 2) {
+                printf("FAILED (bad booth for %d: %d instead of %d)\n", i, bw, (i + 1) / 2);
+                return 1;
+            }
+        } else {
+            if (bw != -((64 - i) / 2)) {
+                printf("FAILED (bad booth for %d: %d instead of %d)\n", i, bw, -((64 - i) / 2));
+                return 1;
+            }
+        }
+    }
+    int failed = 0;
+    struct {
+        const char *value;
+        int w;
+        size_t bits;
+        int expected_len;
+        int32_t expected[256]; // max expected length
+    } cases[] = {
+        // booth begin
+        {"12345678123456781234567812345678123456781234567812345678", 1, 224, 225, {0, 0, 0, 1, -1, 0, 1, -1, 0, 0, 1, 0, -1, 1, -1, 0, 0, 1, -1, 1, -1, 1, 0, -1, 0, 1, 0, 0, 0, -1, 0, 0, 0, 0, 0, 1, -1, 0, 1, -1, 0, 0, 1, 0, -1, 1, -1, 0, 0, 1, -1, 1, -1, 1, 0, -1, 0, 1, 0, 0, 0, -1, 0, 0, 0, 0, 0, 1, -1, 0, 1, -1, 0, 0, 1, 0, -1, 1, -1, 0, 0, 1, -1, 1, -1, 1, 0, -1, 0, 1, 0, 0, 0, -1, 0, 0, 0, 0, 0, 1, -1, 0, 1, -1, 0, 0, 1, 0, -1, 1, -1, 0, 0, 1, -1, 1, -1, 1, 0, -1, 0, 1, 0, 0, 0, -1, 0, 0, 0, 0, 0, 1, -1, 0, 1, -1, 0, 0, 1, 0, -1, 1, -1, 0, 0, 1, -1, 1, -1, 1, 0, -1, 0, 1, 0, 0, 0, -1, 0, 0, 0, 0, 0, 1, -1, 0, 1, -1, 0, 0, 1, 0, -1, 1, -1, 0, 0, 1, -1, 1, -1, 1, 0, -1, 0, 1, 0, 0, 0, -1, 0, 0, 0, 0, 0, 1, -1, 0, 1, -1, 0, 0, 1, 0, -1, 1, -1, 0, 0, 1, -1, 1, -1, 1, 0, -1, 0, 1, 0, 0, 0, -1, 0, 0, 0}},
+        {"12345678123456781234567812345678123456781234567812345678", 2, 224, 113, {0, 0, 1, 1, -2, 1, -1, 1, 0, 1, 1, 2, -2, 2, 0, -2, 0, 0, 1, 1, -2, 1, -1, 1, 0, 1, 1, 2, -2, 2, 0, -2, 0, 0, 1, 1, -2, 1, -1, 1, 0, 1, 1, 2, -2, 2, 0, -2, 0, 0, 1, 1, -2, 1, -1, 1, 0, 1, 1, 2, -2, 2, 0, -2, 0, 0, 1, 1, -2, 1, -1, 1, 0, 1, 1, 2, -2, 2, 0, -2, 0, 0, 1, 1, -2, 1, -1, 1, 0, 1, 1, 2, -2, 2, 0, -2, 0, 0, 1, 1, -2, 1, -1, 1, 0, 1, 1, 2, -2, 2, 0, -2, 0}},
+        {"12345678123456781234567812345678123456781234567812345678", 5, 224, 45, {1, 4, 13, 3, -10, 15, 0, 9, 3, 9, -10, -12, -8, 2, 9, -6, 5, 13, -2, 1, -14, 7, -15, 11, 8, -16, 5, -14, -12, 11, -6, -4, 1, 4, 13, 3, -10, 15, 0, 9, 3, 9, -10, -12, -8}},
+        {"12345678123456781234567812345678123456781234567812345678", 16, 224, 15, {0, 4660, 22136, 4660, 22136, 4660, 22136, 4660, 22136, 4660, 22136, 4660, 22136, 4660, 22136}},
+        {"12345678123456781234567812345678123456781234567812345678", 24, 224, 10, {18, 3430008, 1193046, 7868980, 5666834, 3430008, 1193046, 7868980, 5666834, 3430008}},
+        {"12345678123456781234567812345678123456781234567812345678", 30, 224, 0, {}}
+        // booth end
+    };
+    int num_cases = sizeof(cases) / sizeof(cases[0]);
+    for (int t = 0; t < num_cases; t++) {
+        bn_t bn;
+        bn_init(&bn);
+        bn_from_hex(cases[t].value, &bn);
+        booth_t *booth = bn_booth(&bn, cases[t].w, cases[t].bits);
+        if (booth == NULL && cases[t].expected_len != 0) {
+            printf("Case %d: NULL\n", t);
+            failed++;
+            bn_clear(&bn);
+            continue;
+        }
+        if (cases[t].expected_len != 0) {
+            if (booth->length != cases[t].expected_len) {
+                printf("Case %d: Bad length (%li instead of %i)\n", t, booth->length, cases[t].expected_len);
+                failed++;
+            }
+            for (int i = 0; i < cases[t].expected_len; i++) {
+                if (booth->data[i] != cases[t].expected[i]) {
+                    printf("FAILED (bad booth data at %d: %d instead of %d)\n", i, booth->data[i], cases[t].expected[i]);
+                    failed++;
+                    break;
+                }
+            }
+        }
+        bn_clear(&bn);
+        bn_booth_clear(booth);
+    }
+    printf("OK\n");
+    return 0;
+}
+
 int main(void) {
-    return test_wsliding_ltr() + test_wsliding_rtl() + test_convert_base_small() + test_convert_base_large() + test_bn_wnaf() + test_bn_wnaf_manipulation();
+    return test_wsliding_ltr() + test_wsliding_rtl() + test_convert_base_small() + test_convert_base_large() + test_bn_wnaf() + test_bn_wnaf_manipulation() + test_booth();
 }
