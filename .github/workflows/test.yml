@@ -50,7 +50,7 @@ jobs:
           make test
       - name: Test (C)
         run: |
-          cd test && make test_bn && ./test_bn && cd ..
+          cd test && make test && cd ..
       - name: Code coverage
         uses: codecov/codecov-action@v3
         if: ${{ matrix.python-version == 3.9 }}

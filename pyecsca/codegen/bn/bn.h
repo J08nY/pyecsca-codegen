@@ -88,6 +88,7 @@ void    bn_clear(bn_t *bn);
 
 bn_err bn_from_bin(const uint8_t *data, size_t size, bn_t *out);
 bn_err bn_from_hex(const char *data, bn_t *out);
+bn_err bn_from_dec(const char *data, bn_t *out);
 bn_err bn_from_int(unsigned int value, bn_t *out);
 
 bn_err bn_to_binpad(const bn_t *one, uint8_t *data, size_t size);
@@ -137,6 +138,7 @@ int     bn_bit_length(const bn_t *bn);
 
 wnaf_t *bn_wnaf(const bn_t *bn, int w);
 wnaf_t *bn_bnaf(const bn_t *bn);
+void bn_naf_extend(wnaf_t *naf, size_t new_length);
 
 wsliding_t *bn_wsliding_ltr(const bn_t *bn, int w);
 wsliding_t *bn_wsliding_rtl(const bn_t *bn, int w);

@@ -49,6 +49,10 @@ bn_err bn_from_hex(const char *data, bn_t *out) {
 	return mp_read_radix(out, data, 16);
 }
 
+bn_err bn_from_dec(const char *data, bn_t *out) {
+    return mp_read_radix(out, data, 10);
+}
+
 bn_err bn_from_int(unsigned int value, bn_t *out) {
 	if (sizeof(unsigned int) == 8) {
 		mp_set_u64(out, value);
@@ -396,6 +400,9 @@ wnaf_t *bn_wnaf(const bn_t *bn, int w) {
 	}
 	wnaf_t *result = NULL;
 
+	size_t bits = bn_bit_length(bn) + 1;
+    int8_t arr[bits];
+
 	bn_t half_width;
 	if (mp_init(&half_width) != BN_OKAY) {
 		return NULL;
@@ -420,38 +427,38 @@ wnaf_t *bn_wnaf(const bn_t *bn, int w) {
 		goto exit_val_mod;
 	}
 
-	result = malloc(sizeof(wnaf_t));
-	result->w = w;
-	result->length = bn_bit_length(bn) + 1;
-	result->data = calloc(result->length, sizeof(int8_t));
-
 	size_t i = 0;
-	while (!bn_is_0(&k) && !(bn_get_sign(&k) == BN_NEG)) {
+	while (mp_cmp_d(&k, 0) == MP_GT) {
 		if (bn_get_bit(&k, 0) == 1) {
 			bn_mod(&k, &full_width, &val_mod);
 			if (mp_cmp(&val_mod, &half_width) == MP_GT) {
 				if (mp_sub(&val_mod, &full_width, &val_mod) != BN_OKAY) {
-					free(result->data);
-					free(result);
-					result = NULL;
-					break;
+					goto exit_result;
 				}
 			}
 			int8_t val = (int8_t) mp_get_i32(&val_mod);
-			result->data[i++] = val;
+			arr[i++] = val;
 			if (mp_sub(&k, &val_mod, &k) != BN_OKAY) {
-				free(result->data);
-				free(result);
-				result = NULL;
-				break;
+				goto exit_result;
 			}
 		} else {
-			result->data[i++] = 0;
+			arr[i++] = 0;
 		}
 		bn_rsh(&k, 1, &k);
 	}
-	bn_clear(&val_mod);
 
+	result = malloc(sizeof(wnaf_t));
+	result->w = w;
+	result->length = i;
+	result->data = calloc(result->length, sizeof(int8_t));
+
+    // Revert
+    for (size_t j = 0; j < i; j++) {
+        result->data[j] = arr[i - j - 1];
+    }
+
+exit_result:
+    bn_clear(&val_mod);
 exit_val_mod:
 	bn_clear(&k);
 exit_k:
@@ -463,6 +470,20 @@ exit_full_width:
 
 wnaf_t *bn_bnaf(const bn_t *bn) {
 	return bn_wnaf(bn, 2);
+}
+
+void bn_naf_extend(wnaf_t *naf, size_t new_length) {
+    if (new_length <= naf->length) {
+        return;
+    }
+    int8_t *new_data = calloc(new_length, sizeof(int8_t));
+    size_t diff = new_length - naf->length;
+    for (size_t i = 0; i < naf->length; i++) {
+        new_data[i + diff] = naf->data[i];
+    }
+    free(naf->data);
+    naf->data = new_data;
+    naf->length = new_length;
 }
 
 wsliding_t *bn_wsliding_ltr(const bn_t *bn, int w) {
@@ -606,7 +627,9 @@ small_base_t *bn_convert_base_small(const bn_t *bn, int m) {
 	bn_copy(bn, &k);
 
     int len = 0;
-    if (mp_log_n(&k, m, &len) != BN_OKAY) {
+    if (mp_cmp_d(&k, 0) == MP_EQ) {
+        len = 0;
+    } else if (mp_log_n(&k, m, &len) != BN_OKAY) {
         goto exit_len;
     }
 
@@ -642,7 +665,9 @@ large_base_t *bn_convert_base_large(const bn_t *bn, const bn_t *m) {
 	bn_copy(bn, &k);
 
     int len = 0;
-    if (mp_log(&k, m, &len) != BN_OKAY) {
+    if (mp_cmp_d(&k, 0) == MP_EQ) {
+        len = 0;
+    } else if (mp_log(&k, m, &len) != BN_OKAY) {
         goto exit_len;
     }
 
