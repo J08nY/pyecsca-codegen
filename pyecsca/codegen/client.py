@@ -175,11 +175,13 @@ def decode_data(data: bytes) -> Mapping:
 
 @public
 def cmd_init_prng(seed: bytes) -> str:
+    """Build the init PRNG command."""
     return "i" + hexlify(seed).decode()
 
 
 @public
 def cmd_set_params(params: DomainParameters) -> str:
+    """Build the set parameters command."""
     data = {
         "p": encode_scalar(params.curve.prime),
         "n": encode_scalar(params.order),
@@ -194,62 +196,92 @@ def cmd_set_params(params: DomainParameters) -> str:
 
 @public
 def cmd_generate() -> str:
+    """Build the generate keypair command."""
     return "g"
 
 
 @public
 def cmd_set_privkey(privkey: int) -> str:
+    """Build the set private key command."""
     return "s" + hexlify(encode_data(None, {"s": encode_scalar(privkey)})).decode()
 
 
 @public
 def cmd_set_pubkey(pubkey: Point) -> str:
+    """Build the set public key command."""
     return "w" + hexlify(encode_data(None, {"w": encode_point(pubkey.to_affine())})).decode()
 
 
 @public
 def cmd_scalar_mult(scalar: int, point: Point) -> str:
+    """Build the scalar multiplication command."""
     return "m" + hexlify(encode_data(None, {"s": encode_scalar(scalar),
                                             "w": encode_point(point.to_affine())})).decode()
 
 
 @public
 def cmd_ecdh(pubkey: Point) -> str:
+    """Build the ECDH command."""
     return "e" + hexlify(encode_data(None, {"w": encode_point(pubkey.to_affine())})).decode()
 
 
 @public
 def cmd_ecdsa_sign(data: bytes) -> str:
+    """Build the ECDSA sign command."""
     return "a" + hexlify(encode_data(None, {"d": data})).decode()
 
 
 @public
 def cmd_ecdsa_verify(data: bytes, sig: bytes) -> str:
+    """Build the ECDSA verify command."""
     return "r" + hexlify(encode_data(None, {"d": data, "s": sig})).decode()
 
 
 @public
 def cmd_set_trigger(actions: Triggers) -> str:
+    """Build the set trigger command."""
     vector_bytes = actions.to_bytes(4, "little")
     return "t" + hexlify(vector_bytes).decode()
 
 
 @public
 def cmd_debug() -> str:
+    """Build the debug command."""
     return "d"
 
 
 @public
 class EmulatorTarget(Target):
+    """
+    An emulator-based target, using the rainbow emulator.
+
+    This target will load the binary in an emulator and run the commands
+    by calling the corresponding functions in the binary. It will also
+    hook the ``simpleserial_put`` function to get the output data from
+    the implementation.
+
+    Note that this target does not support triggers, as the rainbow
+    emulator does not support GPIOs.
+    """
     emulator: rainbow_stm32f215
+    """The rainbow emulator instance."""
     result: list
+    """The result of the last command."""
     model: CurveModel
+    """The curve model."""
     coords: CoordinateModel
+    """The coordinate model."""
     seed: Optional[bytes]
+    """The PRNG seed, if any."""
     params: Optional[DomainParameters]
+    """The domain parameters, if any."""
     privkey: Optional[int]
+    """The private key, if any."""
     pubkey: Optional[Point]
+    """The public key, if any."""
     trace: list
+    """The trace collected during the emulation."""
+
 
     def __init__(self, model: CurveModel, coords: CoordinateModel, print_config: Print = Print(0),
                  trace_config: TraceConfig = TraceConfig(), allow_breakpoints: bool = False):
@@ -368,6 +400,7 @@ class EmulatorTarget(Target):
         return bool(int.from_bytes(self.result[0], 'big'))
 
     def transform_trace(self, filter_malloc: bool = True, save_instructions: bool = False) -> Trace:
+        """Transform the collected trace into a :py:class:`pyecsca.sca.trace.Trace` object."""
         samples = []
         instructions = []
         inside_malloc = False
@@ -414,7 +447,7 @@ class EmulatorTarget(Target):
 class ImplTarget(SimpleSerialTarget):
     """
     A target that is based on an implementation built by pyecsca-codegen.
-``
+
     This is an abstract class that uses the send_cmd method on the
     :py:class:`pyecsca.sca.target.simpleserial.SimpleSerialTarget`
     class to send commands to the target. That class in turn requires one to
@@ -424,13 +457,21 @@ class ImplTarget(SimpleSerialTarget):
     or :py:class:`HostTarget` that uses :py:class:`pyecsca.sca.target.binary.BinaryTarget`.
     """
     model: CurveModel
+    """The curve model."""
     coords: CoordinateModel
+    """The coordinate model."""
     seed: Optional[bytes]
+    """The PRNG seed, if any."""
     params: Optional[DomainParameters]
+    """The domain parameters, if any."""
     privkey: Optional[int]
+    """The private key, if any."""
     pubkey: Optional[Point]
+    """The public key, if any."""
     trigger: Optional[Triggers]
+    """The trigger actions, if any."""
     timeout: int
+    """The command timeout, in milliseconds."""
 
     def __init__(self, model: CurveModel, coords: CoordinateModel, **kwargs):
         super().__init__(**kwargs)
