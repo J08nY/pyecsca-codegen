@@ -472,18 +472,80 @@ wnaf_t *bn_bnaf(const bn_t *bn) {
 	return bn_wnaf(bn, 2);
 }
 
-void bn_naf_extend(wnaf_t *naf, size_t new_length) {
-    if (new_length <= naf->length) {
+void bn_naf_pad_left(wnaf_t *naf, int8_t value, size_t amount) {
+    if (amount == 0) {
         return;
     }
-    int8_t *new_data = calloc(new_length, sizeof(int8_t));
-    size_t diff = new_length - naf->length;
+    int8_t *new_data = calloc(naf->length + amount, sizeof(int8_t));
     for (size_t i = 0; i < naf->length; i++) {
-        new_data[i + diff] = naf->data[i];
+        new_data[i + amount] = naf->data[i];
+    }
+    for (size_t i = 0; i < amount; i++) {
+        new_data[i] = value;
     }
     free(naf->data);
     naf->data = new_data;
-    naf->length = new_length;
+    naf->length += amount;
+}
+
+void bn_naf_pad_right(wnaf_t *naf, int8_t value, size_t amount) {
+    if (amount == 0) {
+        return;
+    }
+    naf->data = realloc(naf->data, (naf->length + amount) * sizeof(int8_t));
+    for (size_t i = naf->length; i < naf->length + amount; i++) {
+        naf->data[i] = value;
+    }
+    naf->length += amount;
+}
+
+void bn_naf_strip_left(wnaf_t *naf, int8_t value) {
+    size_t i = 0;
+    while (i < naf->length && naf->data[i] == value) {
+        i++;
+    }
+    if (i == 0) {
+        return;
+    }
+    if (i == naf->length) {
+        free(naf->data);
+        naf->data = NULL;
+        naf->length = 0;
+        return;
+    }
+    int8_t *new_data = calloc(naf->length - i, sizeof(int8_t));
+    for (size_t j = 0; j < naf->length - i; j++) {
+        new_data[j] = naf->data[j + i];
+    }
+    free(naf->data);
+    naf->data = new_data;
+    naf->length -= i;
+}
+
+void bn_naf_strip_right(wnaf_t *naf, int8_t value) {
+    size_t i = naf->length;
+    while (i > 0 && naf->data[i - 1] == value) {
+        i--;
+    }
+    if (i == naf->length) {
+        return;
+    }
+    if (i == 0) {
+        free(naf->data);
+        naf->data = NULL;
+        naf->length = 0;
+        return;
+    }
+    naf->data = realloc(naf->data, i * sizeof(int8_t));
+    naf->length = i;
+}
+
+void bn_naf_reverse(wnaf_t *naf) {
+    for (size_t i = 0; i < naf->length / 2; i++) {
+        int8_t temp = naf->data[i];
+        naf->data[i] = naf->data[naf->length - i - 1];
+        naf->data[naf->length - i - 1] = temp;
+    }
 }
 
 wsliding_t *bn_wsliding_ltr(const bn_t *bn, int w) {

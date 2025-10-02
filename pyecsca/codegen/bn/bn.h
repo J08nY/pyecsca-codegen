@@ -138,7 +138,11 @@ int     bn_bit_length(const bn_t *bn);
 
 wnaf_t *bn_wnaf(const bn_t *bn, int w);
 wnaf_t *bn_bnaf(const bn_t *bn);
-void bn_naf_extend(wnaf_t *naf, size_t new_length);
+void    bn_naf_pad_left(wnaf_t *naf, int8_t value, size_t amount);
+void    bn_naf_pad_right(wnaf_t *naf, int8_t value, size_t amount);
+void    bn_naf_strip_left(wnaf_t *naf, int8_t value);
+void    bn_naf_strip_right(wnaf_t *naf, int8_t value);
+void    bn_naf_reverse(wnaf_t *naf);
 
 wsliding_t *bn_wsliding_ltr(const bn_t *bn, int w);
 wsliding_t *bn_wsliding_rtl(const bn_t *bn, int w);

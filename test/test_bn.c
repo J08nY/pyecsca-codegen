@@ -278,6 +278,64 @@ int test_bn_wnaf() {
     return failed;
 }
 
+int test_bn_wnaf_manipulation() {
+    printf("test_bn_wnaf_manipulation: ");
+    bn_t bn;
+    bn_init(&bn);
+    bn_from_dec("123456789", &bn);
+    wnaf_t *naf = bn_wnaf(&bn, 3);
+    bn_clear(&bn);
+    if (naf->length != 28) {
+        printf("FAILED (bad length %li instead of 28)\n", naf->length);
+        return 1;
+    }
+    bn_naf_pad_left(naf, 0, 5);
+    if (naf->length != 33) {
+        printf("FAILED (bad length after pad left %li instead of 33)\n", naf->length);
+        return 1;
+    }
+    for (int i = 0; i < 5; i++) {
+        if (naf->data[i] != 0) {
+            printf("FAILED (bad data after pad left at %d (%i instead of 0))\n", i, naf->data[i]);
+            return 1;
+        }
+    }
+    bn_naf_strip_left(naf, 0);
+    if (naf->length != 28) {
+        printf("FAILED (bad length after strip left %li instead of 28)\n", naf->length);
+        return 1;
+    }
+    bn_naf_pad_right(naf, 0, 3);
+    if (naf->length != 31) {
+        printf("FAILED (bad length after pad right %li instead of 31)\n", naf->length);
+        return 1;
+    }
+    for (int i = 28; i < 31; i++) {
+        if (naf->data[i] != 0) {
+            printf("FAILED (bad data after pad right at %d (%i instead of 0))\n", i, naf->data[i]);
+            return 1;
+        }
+    }
+    bn_naf_strip_right(naf, 0);
+    if (naf->length != 28) {
+        printf("FAILED (bad length after strip right %li instead of 28)\n", naf->length);
+        return 1;
+    }
+    int8_t rev[28] = {-3, 0, 0, 3, 0, 0, 0, 0, -3, 0, 0, 0, -3, 0, 0, 0, 0, 0, -1, 0, 0, 3, 0, 0, -1, 0, 0, 1};
+    bn_naf_reverse(naf);
+    for (int i = 0; i < 28; i++) {
+        if (naf->data[i] != rev[i]) {
+            printf("FAILED (bad data after reverse at %d (%i instead of %i))\n", i, naf->data[i], rev[i]);
+            return 1;
+        }
+    }
+
+    free(naf->data);
+    free(naf);
+    printf("OK\n");
+    return 0;
+}
+
 int main(void) {
-    return test_wsliding_ltr() + test_wsliding_rtl() + test_convert_base_small() + test_convert_base_large() + test_bn_wnaf();
+    return test_wsliding_ltr() + test_wsliding_rtl() + test_convert_base_small() + test_convert_base_large() + test_bn_wnaf() + test_bn_wnaf_manipulation();
 }
