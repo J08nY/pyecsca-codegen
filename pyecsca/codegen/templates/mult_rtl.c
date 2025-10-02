@@ -5,6 +5,12 @@ void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, point_t *ou
 	point_t *q = point_copy(point);
 	point_t *r = point_copy(curve->neutral);
 
+    {% if scalarmult.complete %}
+	    size_t bits = bn_bit_length(&curve->n);
+	{% else %}
+        size_t bits = bn_bit_length(scalar);
+    {% endif %}
+
 	{%- if scalarmult.always %}
 		point_t *dummy = point_new();
 	{%- endif %}
@@ -12,7 +18,7 @@ void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, point_t *ou
 	bn_init(&copy);
 	bn_copy(scalar, &copy);
 
-    while (!bn_is_0(&copy)) {
+    for (int i = 0; i < bits; i++) {
         if (bn_get_bit(&copy, 0) == 1) {
             point_accumulate(r, q, curve, r);
         } else {
