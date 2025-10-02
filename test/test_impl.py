@@ -33,8 +33,6 @@ def target(
     simple_multiplier, additional, secp128r1
 ) -> Generator[HostTarget, Any, None]:
     mult_class, mult_kwargs = simple_multiplier
-    if mult_class == WindowBoothMultiplier:
-        pytest.skip("WindowBoothMultiplier not implemented yet")
     mult_name = mult_class.__name__
     formulas = ["add-1998-cmo", "dbl-1998-cmo"]
     if NegationFormula in mult_class.requires:
