@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 env:
   LLVM_CONFIG: /usr/bin/llvm-config-14
-  OTHER_PACKAGES: swig libpcsclite-dev llvm-14 libllvm14 llvm-14-dev valgrind gcc gcc-arm-none-eabi binutils-arm-none-eabi libnewlib-arm-none-eabi
+  OTHER_PACKAGES: swig libpcsclite-dev llvm-14 libllvm14 llvm-14-dev valgrind gdb gcc gcc-arm-none-eabi binutils-arm-none-eabi libnewlib-arm-none-eabi
 
 jobs:
   test:
