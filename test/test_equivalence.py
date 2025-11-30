@@ -16,8 +16,6 @@ from pyecsca.sca.target.binary import BinaryTarget
 from pyecsca.codegen.client import ImplTarget
 from pyecsca.ec.context import DefaultContext, local, Node
 
-from pyecsca.ec.mult import WindowBoothMultiplier
-
 
 class GDBTarget(ImplTarget, BinaryTarget):
     def __init__(self, model: CurveModel, coords: CoordinateModel, **kwargs):
@@ -50,7 +48,7 @@ class GDBTarget(ImplTarget, BinaryTarget):
     def disconnect(self):
         super().disconnect()
         if self.trace_file is not None:
-            #self.trace_file.close()
+            # self.trace_file.close()
             self.trace_file = None
 
 

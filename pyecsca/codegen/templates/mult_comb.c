@@ -12,7 +12,7 @@ static void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, poin
 	point_t *current = point_copy(point);
 	for (int i = 0; i < {{ scalarmult.width }}; i++) {
         base_points[i] = point_copy(current);
-        if (i != d - 1) {
+        if (i != {{ scalarmult.width }} - 1) {
             for (int j = 0; j < d; j++) {
                 point_dbl(current, curve, current);
             }

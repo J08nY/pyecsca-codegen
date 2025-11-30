@@ -19,7 +19,9 @@ static void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, poin
             points_neg[i] = point_copy(current);
             point_neg(points_neg[i], curve, points_neg[i]);
         {%- endif %}
-        point_add(current, dbl, curve, current);
+        if (i != {{ 2 ** (scalarmult.width - 2) }} - 1) {
+            point_add(current, dbl, curve, current);
+        }
     }
     point_free(current);
     point_free(dbl);

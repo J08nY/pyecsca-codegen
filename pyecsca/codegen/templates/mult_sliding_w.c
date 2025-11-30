@@ -10,7 +10,9 @@ static void scalar_mult_inner(bn_t *scalar, point_t *point, curve_t *curve, poin
     point_dbl(current, curve, dbl);
     for (long i = 0; i < {{ 2 ** (scalarmult.width - 1) }}; i++) {
         points[i] = point_copy(current);
-        point_add(current, dbl, curve, current);
+        if (i + 1 < {{ 2 ** (scalarmult.width - 1) }}) {
+            point_add(current, dbl, curve, current);
+        }
     }
     point_free(current);
     point_free(dbl);

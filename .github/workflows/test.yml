@@ -1,6 +1,10 @@
 name: Test
 
-on: [push, pull_request]
+on:
+  schedule: # Run every Monday at noon
+    - cron: '0 12 * * 1'
+  push:
+  pull_request:
 
 env:
   LLVM_CONFIG: /usr/bin/llvm-config-14
@@ -11,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: [ "3.9", "3.10", "3.11", "3.12" ]
     env:
       PYTHON: ${{ matrix.python-version }}
     steps:
